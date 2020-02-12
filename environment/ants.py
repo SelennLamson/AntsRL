@@ -3,30 +3,40 @@ from typing import List
 
 from .environment import Environment, EnvObject
 from .pheromone import Pheromone
+from .food import Food
 
 
 class Ants (EnvObject):
-	def __init__(self, environment: Environment, n_ants: int):
+	def __init__(self, environment: Environment, n_ants: int, max_hold, xyt=None):
 		super().__init__(environment)
 
 		self.n_ants = n_ants
+		self.max_hold = max_hold
 
 		# Column 1: X coord (0 ; w)
 		# Column 2: Y coord (0 ; h)
 		# Column 3: Theta (-1 ; 1)
-		self.ants = np.random.random((n_ants, 3))
-		self.ants[:, 0] *= self.environment.w
-		self.ants[:, 1] *= self.environment.h
-		self.ants[:, 2] *= np.pi * 2
+		if xyt is None:
+			self.ants = np.zeros((n_ants, 3))
+			self.ants[:, 0] += self.environment.w / 2 + np.random.random(n_ants) * 5 - 2.5
+			self.ants[:, 1] += self.environment.h / 2 + np.random.random(n_ants) * 5 - 2.5
+			self.ants[:, 2] = np.random.random(n_ants) * 2 * np.pi
+		else:
+			self.ants = xyt.copy()
 
 		self.prev_ants = self.ants.copy()
 
-		self.phero_activation = np.zeros((n_ants, 0), dtype=np.bool)
+		self.phero_activation = np.zeros((n_ants, 0))
 		self.pheromones: List[Pheromone] = []
 
+		# True when mandibles are closed (active)
+		self.mandibles = np.zeros(n_ants, dtype=bool)
+		self.holding = np.zeros(n_ants)
+
 	def visualize_copy(self, newenv):
-		newants = Ants(newenv, self.n_ants)
-		newants.prev_ants = self.prev_ants.copy()
+		newants = Ants(newenv, self.n_ants, self.max_hold, self.ants)
+		newants.mandibles = self.mandibles.copy()
+		newants.holding = self.holding.copy()
 		return newants
 
 	@property
@@ -69,19 +79,44 @@ class Ants (EnvObject):
 		self.phero_activation = np.hstack([self.phero_activation, np.zeros((self.n_ants, 1))]).astype(np.bool)
 		self.pheromones.append(pheromone)
 
-	def activate_pheromone(self, phero_index, add_mask, del_mask):
-		self.phero_activation[:, phero_index] |= add_mask
-		self.phero_activation[:, phero_index] &= np.bitwise_not(del_mask)
+	def activate_pheromone(self, phero_index, new_activation):
+		self.phero_activation[:, phero_index] = new_activation
 
-	def emit_pheromones(self, phero_index, strength):
+	def emit_pheromones(self, phero_index):
 		phero = self.pheromones[phero_index]
-		phero.add_pheromones(self.xy[self.phero_activation[:, phero_index], :].astype(int), strength)
+		phero.add_pheromones(self.xy.astype(int), self.phero_activation[:, phero_index])
+
+	def update_mandibles(self, new_mandible):
+		closing = np.bitwise_and(new_mandible, 1 - self.mandibles)
+		opening = np.bitwise_and(1 - new_mandible, self.mandibles)
+		xy = self.prev_ants[:, 0:2].astype(int)
+
+		self.mandibles = new_mandible.copy()
+		for obj in self.environment.objects:
+			if isinstance(obj, Food):
+				# Ants closing their mandibles are taking food
+				taken = np.minimum(self.max_hold, np.maximum(0, obj.qte[xy[:, 0], xy[:, 1]]))
+				taken[1 - closing] = 0
+
+				# Ants opening their mandibles are dropping food
+				dropped = self.holding.copy()
+				dropped[1 - opening] = 0
+
+				obj.qte[xy[:, 0], xy[:, 1]] += dropped - taken
+				self.holding += taken - dropped
+
+
 
 	def update(self):
 		self.prev_ants = self.ants.copy()
+		for obj in self.environment.objects:
+			if isinstance(obj, Pheromone):
+				if obj in self.pheromones:
+					phero_i = self.pheromones.index(obj)
+					self.emit_pheromones(phero_i)
 
 	def update_step(self):
-		return 1
+		return 10
 
 	def apply_func(self, func):
 		for i in range(self.n_ants):
