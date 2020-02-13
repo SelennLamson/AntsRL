@@ -47,7 +47,7 @@ zoom_factor = big_dim / e_max
 # holding_ant = pygame.transform.smoothscale(pygame.image.load("assets/holding_ant_32.png"), (24, 24))
 ant = pygame.image.load("assets/ant_32.png")
 holding_ant = pygame.image.load("assets/holding_ant_32.png")
-dirt = pygame.image.load("assets/dirt.jpg")
+dirt = pygame.image.load("assets/dirt.png")
 rock = pygame.image.load("assets/rock.png")
 rock_tile = pygame.image.load("assets/rock_tile.jpg")
 
