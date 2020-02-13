@@ -3,11 +3,15 @@ import pickle
 import random
 import math
 
-from environment.ants import *
-from environment.pheromone import *
-from environment.circle_obstacles import *
-from environment.walls import *
-from environment.food import *
+from utils import *
+
+from environment.environment import Environment
+from environment.anthill import Anthill
+from environment.ants import Ants
+from environment.pheromone import Pheromone
+from environment.circle_obstacles import CircleObstacles
+from environment.walls import Walls
+from environment.food import Food
 from environment.RL_api import RLApi
 
 
@@ -28,11 +32,16 @@ def follow_pheromone(x, y, t, ps):
 				best_angle = angle * 0.1
 	return x, y, best_angle + t, ps
 
+w = 200
+h = 100
+env = Environment(w, h)
 
-env = Environment(200, 100)
+anthill = Anthill(env, int(random.random() * 50 + 75), int(random.random() * 25 + 37), int(random.random() * 10 + 10))
 
-walls = Walls(env)
-food = Food(env)
+world_walls = perlin_noise_generator(w, h, random.randint(-10000, 10000), random.randint(-10000, 10000)) > 0.05
+world_walls[anthill.area] = False
+walls = Walls(env, world_walls)
+food = Food(env, (perlin_noise_generator(w, h, random.randint(-10000, 10000), random.randint(-10000, 10000), scale=10.0) > 0.2) * 10.0)
 
 n_rocks = 20
 rock_centers = np.random.random((n_rocks, 2))
@@ -45,8 +54,14 @@ rocks = CircleObstacles(env, centers=rock_centers, radiuses=np.random.random(n_r
 phero1 = Pheromone(env, color=(255, 64, 0), max_val=20)
 phero2 = Pheromone(env, color=(64, 64, 255), max_val=20)
 
-n = 500
-ants = Ants(env, n, 100)
+n = 200
+ants_angle = np.random.random(n) * 2 * np.pi
+ants_dist = np.random.random(n) * anthill.radius * 0.8
+ants_x = np.cos(ants_angle) * ants_dist + anthill.x
+ants_y = np.sin(ants_angle) * ants_dist + anthill.y
+ants_t = np.random.random(n) * 2 * np.pi
+
+ants = Ants(env, n, 100, xyt=np.array([ants_x, ants_y, ants_t]).T)
 ants.register_pheromone(phero1)
 ants.register_pheromone(phero2)
 
@@ -59,9 +74,8 @@ percep_mask = np.array([
 	[0, 1, 1, 1, 0],
 	[0, 0, 1, 0, 0]
 ], dtype=bool)
-# percep_mask = None
 api = RLApi(ants, max_speed=1, max_rot_speed=45, carry_speed_reduction=0.05, backward_speed_reduction=0.5)
-api.setup_perception(2 if percep_mask is None else percep_mask.shape[0]//2, [ants, phero1, phero2, food, walls, rocks], percep_mask, 2)
+api.setup_perception(percep_mask.shape[0]//2, [ants, phero1, phero2, food, walls, rocks], percep_mask, 2)
 api.save_perceptive_field = True
 
 

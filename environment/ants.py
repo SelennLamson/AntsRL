@@ -24,13 +24,8 @@ class Ants (EnvObject):
 		# Column 1: X coord (0 ; w)
 		# Column 2: Y coord (0 ; h)
 		# Column 3: Theta (-1 ; 1)
-		if xyt is None:
-			self.ants = np.zeros((n_ants, 3))
-			self.ants[:, 0] += self.environment.w / 2 + np.random.random(n_ants) * 5 - 2.5
-			self.ants[:, 1] += self.environment.h / 2 + np.random.random(n_ants) * 5 - 2.5
-			self.ants[:, 2] = np.random.random(n_ants) * 2 * np.pi
-		else:
-			self.ants = xyt.copy()
+		self.ants = xyt.copy()
+		self.warp_xy()
 
 		self.prev_ants = self.ants.copy()
 
@@ -124,7 +119,7 @@ class Ants (EnvObject):
 					self.emit_pheromones(phero_i)
 
 	def update_step(self):
-		return 10
+		return 999
 
 	def apply_func(self, func):
 		for i in range(self.n_ants):
