@@ -6,6 +6,14 @@ from .pheromone import Pheromone
 from .food import Food
 
 
+class AntsVisualization(EnvObject):
+	def __init__(self, env, ants_xyt, mandibles, holding):
+		super().__init__(env)
+		self.ants = ants_xyt.copy()
+		self.mandibles = mandibles.copy()
+		self.holding = holding.copy()
+
+
 class Ants (EnvObject):
 	def __init__(self, environment: Environment, n_ants: int, max_hold, xyt=None):
 		super().__init__(environment)
@@ -34,10 +42,7 @@ class Ants (EnvObject):
 		self.holding = np.zeros(n_ants)
 
 	def visualize_copy(self, newenv):
-		newants = Ants(newenv, self.n_ants, self.max_hold, self.ants)
-		newants.mandibles = self.mandibles.copy()
-		newants.holding = self.holding.copy()
-		return newants
+		return AntsVisualization(newenv, self.ants, self.mandibles, self.holding)
 
 	@property
 	def x(self):
@@ -78,6 +83,9 @@ class Ants (EnvObject):
 	def register_pheromone(self, pheromone: Pheromone):
 		self.phero_activation = np.hstack([self.phero_activation, np.zeros((self.n_ants, 1))]).astype(np.bool)
 		self.pheromones.append(pheromone)
+
+	def activate_all_pheromones(self, new_activations):
+		self.phero_activation = new_activations.copy()
 
 	def activate_pheromone(self, phero_index, new_activation):
 		self.phero_activation[:, phero_index] = new_activation

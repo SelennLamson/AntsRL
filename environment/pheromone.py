@@ -9,19 +9,20 @@ DIFFUSE_FILTER[1, 1] = 1 - 8 * DIFFUSE_FACTOR
 DIFFUSE_FILTER *= 1 - EVAP_FACTOR
 
 class Pheromone (EnvObject):
-	def __init__(self, environment: Environment, color=(64, 64, 64), max_val=None):
+	def __init__(self, environment: Environment, color=(64, 64, 64), max_val=None, phero=None):
 		super().__init__(environment)
 
 		self.color = color
 		self.max_val = max_val
 		self.w = environment.w
 		self.h = environment.h
-		self.phero = np.zeros((self.w, self.h))
+		if phero is None:
+			self.phero = np.zeros((self.w, self.h))
+		else:
+			self.phero = phero.copy()
 
 	def visualize_copy(self, newenv):
-		newphero = Pheromone(newenv, self.color, self.max_val)
-		newphero.phero = self.phero.copy()
-		return newphero
+		return Pheromone(newenv, self.color, self.max_val, self.phero)
 
 	def add_pheromones(self, add_xy, phero_strength):
 		if len(add_xy) == 0:

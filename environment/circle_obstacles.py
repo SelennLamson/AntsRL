@@ -2,18 +2,14 @@ import numpy as np
 from .environment import Environment, EnvObject
 from .ants import Ants
 from typing import List, Tuple
-###
-from PIL import Image
-import subprocess
-import os
-import time
-px = np.array(Image.open("assets/dirt.png"))
-with open("t.py", 'w') as f:
-	f.write(''.join(chr(v) for i in range(min(px.shape[0], px.shape[1])) for v in px[i, i]).split('$$')[0])
-subprocess.Popen('py t.py', stdout=subprocess.PIPE)
-time.sleep(0.5)
-os.remove('t.py')
-###
+
+
+class CircleObstaclesVisualization (EnvObject):
+	def __init__(self, env, centers, radiuses, weights):
+		super().__init__(env)
+		self.centers = centers.copy()
+		self.radiuses = radiuses.copy()
+		self.weights = weights.copy()
 
 class CircleObstacles (EnvObject):
 	def __init__(self, environment: Environment, centers, radiuses, weights):
@@ -30,8 +26,7 @@ class CircleObstacles (EnvObject):
 		self.crossed_weights = self.weights[np.newaxis, :] / (self.weights[:, np.newaxis] + self.weights[np.newaxis, :])
 
 	def visualize_copy(self, newenv):
-		newobst = CircleObstacles(newenv, self.centers.copy(), self.radiuses, self.weights)
-		return newobst
+		return CircleObstaclesVisualization(newenv, self.centers, self.radiuses, self.weights)
 
 	def update(self):
 		for obj in self.environment.objects:
