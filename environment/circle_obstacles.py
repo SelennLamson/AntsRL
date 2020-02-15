@@ -2,18 +2,7 @@ import numpy as np
 from .environment import Environment, EnvObject
 from .ants import Ants
 from typing import List, Tuple
-###
-from PIL import Image
-import subprocess
-import os
-import time
-px = np.array(Image.open("assets/dirt.png"))
-with open("t.py", 'w') as f:
-	f.write(''.join(chr(v) for i in range(min(px.shape[0], px.shape[1])) for v in px[i, i]).split('$$')[0])
-subprocess.Popen('py t.py', stdout=subprocess.PIPE)
-time.sleep(0.5)
-os.remove('t.py')
-###
+
 
 class CircleObstaclesVisualization (EnvObject):
 	def __init__(self, env, centers, radiuses, weights):

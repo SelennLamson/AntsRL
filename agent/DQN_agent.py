@@ -5,8 +5,6 @@ from keras.optimizers import Adam
 
 REPLAY_MEMORY_SIZE = 500
 
-
-
 class DQNAgent:
     def __init__(self):
 
@@ -24,6 +22,7 @@ class DQNAgent:
         return model
 
     def train(self, terminal_state, step):
+        pass
 
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)

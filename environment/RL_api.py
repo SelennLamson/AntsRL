@@ -7,6 +7,7 @@ from .food import Food
 from .ants import Ants
 from .walls import Walls
 from .circle_obstacles import CircleObstacles
+from .anthill import Anthill
 
 DELTA = 1.1
 AX = np.newaxis
@@ -17,17 +18,15 @@ class RLPerceptiveFieldVisualization(EnvObject):
 		self.perceptive_field = perceptive_field
 
 class RLApi (EnvObject):
-	def __init__(self, ants: Ants, max_speed: float, max_rot_speed: float, carry_speed_reduction: float, backward_speed_reduction: float):
-		""" Initializes an RL API over a group of ants
-		:param ants: The group of ants to control
+	def __init__(self, max_speed: float, max_rot_speed: float, carry_speed_reduction: float, backward_speed_reduction: float):
+		""" Initializes an RL API. Call register_ants to register this API to a group of ants and its environment.
 		:param max_speed: The maximum forward and backward speed at which ants can move.
 		:param max_rot_speed: The maximum number of radians ants can turn at each step.
 		:param carry_speed_reduction: How much one unit of carried food reduces the max speed (cumulative factor).
 		:param backward_speed_reduction: How much moving backward reduces the max speed (factor).
 		"""
-		super().__init__(ants.environment)
-
-		self.ants = ants
+		super().__init__(None)
+		self.ants = None
 
 		self.perception_radius = 0
 		self.perception_mask = None
@@ -43,6 +42,14 @@ class RLApi (EnvObject):
 		# If set to True, will save the perceptive field of each ant as an image to display over environment during visualization.
 		self.save_perceptive_field = False
 		self.perceptive_field = None
+
+	def register_ants(self, new_ants: Ants):
+		if self.environment is not None:
+			self.environment.detach_object(self)
+		self.ants = new_ants
+		self.environment = new_ants.environment
+		self.environment.add_object(self)
+		self.perceived_objects = []
 
 	def visualize_copy(self, newenv: Environment):
 		return RLPerceptiveFieldVisualization(newenv, self.perceptive_field)
@@ -95,6 +102,8 @@ class RLApi (EnvObject):
 				perception[:, :, :, i] = obj.qte[abs_coords[:, :, :, 0], abs_coords[:, :, :, 1]]
 			elif isinstance(obj, Walls):
 				perception[:, :, :, i] = obj.map[abs_coords[:, :, :, 0], abs_coords[:, :, :, 1]]
+			elif isinstance(obj, Anthill):
+				perception[:, :, :, i] = obj.area[abs_coords[:, :, :, 0], abs_coords[:, :, :, 1]]
 			elif isinstance(obj, CircleObstacles):
 				vecs = abs_coords[:, :, :, AX, :] - obj.centers[AX, AX, AX, :, :]
 				dists = np.sum(vecs**2, axis=4)**0.5

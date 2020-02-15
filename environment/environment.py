@@ -5,7 +5,8 @@ from typing import List
 class EnvObject:
 	def __init__(self, environment: 'Environment'):
 		self.environment = environment
-		self.environment.add_object(self)
+		if self.environment is not None:
+			self.environment.add_object(self)
 
 	def visualize_copy(self, newenv: 'Environment'):
 		return EnvObject(newenv)
@@ -25,6 +26,10 @@ class Environment:
 
 	def add_object(self, obj: EnvObject):
 		self.objects.append(obj)
+
+	def detach_object(self, obj: EnvObject):
+		if obj in self.objects:
+			self.objects.remove(obj)
 
 	def save_state(self):
 		newenv = Environment(self.w, self.h)
