@@ -126,7 +126,11 @@ class RLApi (EnvObject):
 		return perception, state
 
 	def step(self, action):
-
+		"""
+		Take a list as an input containing only NaN value except for the action to do.
+		:param action:
+		:return:
+		"""
 		if action[0] is not None:
 			self.ants.update_mandibles(action[0])
 		elif action[1] is not None:
