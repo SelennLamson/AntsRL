@@ -5,7 +5,6 @@ from .environment import Environment, EnvObject
 from .pheromone import Pheromone
 from .food import Food
 
-
 class AntsVisualization(EnvObject):
 	def __init__(self, env, ants_xyt, mandibles, holding):
 		super().__init__(env)

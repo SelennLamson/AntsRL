@@ -4,7 +4,7 @@ import pygame
 import pickle
 from scipy.signal import convolve2d
 import numpy as np
-AX = np.newaxis
+from utils import *
 
 from environment.ants import AntsVisualization
 from environment.pheromone import Pheromone

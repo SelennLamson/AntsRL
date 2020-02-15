@@ -1,6 +1,8 @@
 import numpy as np
 import noise
 
+AX = np.newaxis
+
 def perlin_noise_generator(w, h, offset_x, offset_y, scale=22.0, octaves=2, persistence=0.5, lacunarity=2.0):
 	shape = (w, h)
 	gen = np.zeros(shape)

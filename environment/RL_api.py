@@ -1,5 +1,6 @@
 import numpy as np
 from typing import List
+from utils import *
 
 from .environment import Environment, EnvObject
 from .pheromone import Pheromone
@@ -10,7 +11,6 @@ from .circle_obstacles import CircleObstacles
 from .anthill import Anthill
 
 DELTA = 1.1
-AX = np.newaxis
 
 class RLPerceptiveFieldVisualization(EnvObject):
 	def __init__(self, env: Environment, perceptive_field):
