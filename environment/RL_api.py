@@ -125,6 +125,22 @@ class RLApi (EnvObject):
 
 		return perception, state
 
+	def step(self, action):
+
+		if action[0] is not None:
+			self.ants.update_mandibles(action[0])
+		elif action[1] is not None:
+			self.ants.activate_all_pheromones(action[1])
+		elif action[2] is not None:
+			self.ants.rotate_ants(action[2] * self.max_rot_speed)
+		elif action[3] is not None:
+			fwd = action[3] * self.max_speed * (1 - self.ants.holding * self.carry_speed_reduction)
+			fwd[fwd < 0] *= self.backward_speed_reduction
+			self.ants.forward_ants(fwd)
+
+
+
+
 	def action(self, forward, turn, open_close_mandibles, on_off_pheromones):
 		""" Applies the different ant actions to the ant group.
 		:param forward: How much the ant should move forward (-1;1), will be multiplied by max_speed
