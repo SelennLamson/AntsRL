@@ -17,7 +17,7 @@ PHERO_COLORS = [
 ]
 
 class EnvironmentGenerator:
-	def __init__(self, w, h, n_ants, n_pheromones, n_rocks, food_generator, walls_generator):
+	def __init__(self, w, h, n_ants, n_pheromones, n_rocks, food_generator, walls_generator, max_steps):
 		self.w = w
 		self.h = h
 		self.n_ants = n_ants
@@ -34,12 +34,14 @@ class EnvironmentGenerator:
 										 [0, 0, 1, 0, 0]], dtype=bool)
 		self.perception_shift = 2
 
+		self.max_steps = max_steps
+
 	def setup_perception(self, new_mask, new_shift):
 		self.perception_mask = new_mask
 		self.perception_shift = new_shift
 
 	def generate(self, rl_api: RLApi):
-		env = Environment(self.w, self.h)
+		env = Environment(self.w, self.h, self.max_steps)
 		perceived_objects = []
 
 		anthill = Anthill(env,

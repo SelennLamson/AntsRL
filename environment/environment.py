@@ -19,10 +19,12 @@ class EnvObject:
 
 
 class Environment:
-	def __init__(self, w, h):
+	def __init__(self, w, h, max_time):
 		self.w = w
 		self.h = h
 		self.objects: List[EnvObject] = []
+		self.max_time = max_time
+		self.timestep = 1
 
 	def add_object(self, obj: EnvObject):
 		self.objects.append(obj)
@@ -32,7 +34,7 @@ class Environment:
 			self.objects.remove(obj)
 
 	def save_state(self):
-		newenv = Environment(self.w, self.h)
+		newenv = Environment(self.w, self.h, self.max_time)
 		for obj in self.objects:
 			newenv.add_object(obj.visualize_copy(newenv))
 		return newenv
@@ -40,6 +42,6 @@ class Environment:
 	def update(self):
 		steps = [(obj.update_step(), obj) for obj in self.objects]
 		steps.sort(key=lambda x: x[0])
-
+		self.timestep += 1 # Update timer at each update
 		for step, obj in steps:
 			obj.update()

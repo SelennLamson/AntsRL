@@ -167,7 +167,10 @@ class RLApi (EnvObject):
 
 		reward = self.compute_ants_distance() - self.original_ants_distance # Delta between original distance and actual distance
 		perception, state = self.observation()
-		return perception, reward
+
+		done = self.environment.max_time == self.environment.timestep
+
+		return perception, reward, done
 
 
 	def action(self, forward, turn, open_close_mandibles, on_off_pheromones):
