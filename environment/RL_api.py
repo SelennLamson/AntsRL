@@ -27,6 +27,7 @@ class RLApi (EnvObject):
 		"""
 		super().__init__(None)
 		self.ants = None
+		self.original_ants_position = None
 
 		self.perception_radius = 0
 		self.perception_mask = None
@@ -50,6 +51,19 @@ class RLApi (EnvObject):
 		self.environment = new_ants.environment
 		self.environment.add_object(self)
 		self.perceived_objects = []
+		self.original_ants_distance = self.compute_ants_distance()
+		self.original_ants_position = new_ants.xy
+
+	def compute_ants_distance(self):
+		"""
+		Return the distance of the ant to the center of the anthill.
+		:return:
+		"""
+		center_anthill = []
+		for obj in self.environment.objects:
+			if isinstance(obj, Anthill):
+				center_anthill.append([obj.x, obj.y])
+		return np.linalg.norm(center_anthill - self.ants.xy)
 
 	def visualize_copy(self, newenv: Environment):
 		return RLPerceptiveFieldVisualization(newenv, self.perceptive_field)
@@ -136,7 +150,7 @@ class RLApi (EnvObject):
 
 	def step(self, action):
 		"""
-		Take a list as an input containing only NaN value except for the action to do.
+		Take a list as an input containing only NaN value except for the action to do. Return the reward.
 		:param action:
 		:return:
 		"""
@@ -151,7 +165,9 @@ class RLApi (EnvObject):
 			fwd[fwd < 0] *= self.backward_speed_reduction
 			self.ants.forward_ants(fwd)
 
-
+		reward = self.compute_ants_distance() - self.original_ants_distance # Delta between original distance and actual distance
+		perception, state = self.observation()
+		return perception, reward
 
 
 	def action(self, forward, turn, open_close_mandibles, on_off_pheromones):
@@ -168,3 +184,5 @@ class RLApi (EnvObject):
 		fwd = forward * self.max_speed * (1 - self.ants.holding * self.carry_speed_reduction)
 		fwd[fwd < 0] *= self.backward_speed_reduction
 		self.ants.forward_ants(fwd)
+
+

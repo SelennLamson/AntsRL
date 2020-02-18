@@ -6,14 +6,14 @@ from gui.visualize import Visualizer
 from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
-from agent.random_agent import RandomAgent
+from Agent.random_agent import RandomAgent
 
 def main():
     save_file_name = "random_agent.arl"
 
     generator = EnvironmentGenerator(w=200,
                                      h=100,
-                                     n_ants=100,
+                                     n_ants=1,
                                      n_pheromones=2,
                                      n_rocks=0,
                                      food_generator=CirclesGenerator(10, 5, 10),
@@ -25,8 +25,8 @@ def main():
     api.save_perceptive_field = True
     visualizer = Visualizer()
 
-    episodes = 3
-    steps = 500
+    episodes = 1
+    steps = 100
     states = []
 
     agent = RandomAgent(n_action=4)
@@ -41,6 +41,8 @@ def main():
 
             obs, state = api.observation()
 
+            print(obs.shape)
+            print(obs)
             action = agent.choose_action(obs)
 
             api.step(action)

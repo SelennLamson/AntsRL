@@ -12,8 +12,10 @@ class RandomAgent:
 
         index_a = np.random.randint(2, self.n_action, size=1)[0]
 
-        if index_a > 1:
-            value = random.uniform(-1, 1)
+        if index_a == 2:
+            value = 1
+        elif index_a == 3:
+            value = random.uniform(0, 1)
         else:
             value = False
         actions[index_a] = value
