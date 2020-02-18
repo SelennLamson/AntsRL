@@ -81,9 +81,9 @@ class EnvironmentGenerator:
 			ants.register_pheromone(phero)
 			perceived_objects.insert(p + 1, phero)
 
+		rl_api.register_ants(ants)
 		rl_api.setup_perception(self.perception_mask.shape[0] // 2,
 								perceived_objects,
 								self.perception_mask,
 								self.perception_shift)
-		rl_api.register_ants(ants)
 		return env

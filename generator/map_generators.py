@@ -1,6 +1,10 @@
 import random
 from utils import *
 
+#
+# class AnthillPlacer:
+# 	def __init__(self, center_x, center_y, min_radius, max_radius):
+#
 
 class PerlinGenerator:
 	def __init__(self, scale=22.0, density=0.05, octaves=2, persistence=0.5, lacunarity=2.0):

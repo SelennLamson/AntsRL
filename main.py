@@ -6,7 +6,7 @@ from gui.visualize import Visualizer
 from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
-from Agent.random_agent import RandomAgent
+from agent.random_agent import RandomAgent
 
 def main():
     save_file_name = "random_agent.arl"
@@ -26,7 +26,7 @@ def main():
     visualizer = Visualizer()
 
     episodes = 1
-    steps = 100
+    steps = 500
     states = []
 
     agent = RandomAgent(n_action=4)
@@ -41,8 +41,6 @@ def main():
 
             obs, state = api.observation()
 
-            print(obs.shape)
-            print(obs)
             action = agent.choose_action(obs)
 
             api.step(action)
