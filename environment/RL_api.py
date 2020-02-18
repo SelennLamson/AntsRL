@@ -112,8 +112,8 @@ class RLApi (EnvObject):
 				ants_xy = np.round(obj.xy.astype(int))
 				ants_xy[:, 0] = np.mod(ants_xy[:, 0], self.environment.w)
 				ants_xy[:, 1] = np.mod(ants_xy[:, 1], self.environment.h)
-				ants_map = np.zeros((self.environment.w, self.environment.h), dtype=bool)
-				ants_map[ants_xy[:, 0], ants_xy[:, 1]] = True
+				ants_map = np.zeros((self.environment.w, self.environment.h), dtype=int)
+				ants_map[ants_xy[:, 0], ants_xy[:, 1]] += 1
 				perception[:, :, :, i] = ants_map[abs_coords[:, :, :, 0], abs_coords[:, :, :, 1]]
 
 		if self.save_perceptive_field:

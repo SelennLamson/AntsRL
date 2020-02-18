@@ -13,7 +13,7 @@ def main():
 
     generator = EnvironmentGenerator(w=200,
                                      h=100,
-                                     n_ants=100,
+                                     n_ants=1,
                                      n_pheromones=2,
                                      n_rocks=0,
                                      food_generator=CirclesGenerator(10, 5, 10),
@@ -25,7 +25,7 @@ def main():
     api.save_perceptive_field = True
     visualizer = Visualizer()
 
-    episodes = 3
+    episodes = 1
     steps = 500
     states = []
 
