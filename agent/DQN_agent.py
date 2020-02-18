@@ -1,16 +1,21 @@
 from collections import deque
 import random
 import numpy as np
+import time
 
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
+from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten, Reshape
 from keras.optimizers import Adam
+from ModifiedTensorBoard import ModifiedTensorBoard
+
+MODEL_NAME = 'CNN'
 
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 100
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.2
-UPDATE_TARGET_EVERY = 20
+UPDATE_TARGET_EVERY = 3
+OBSERVATION_SPACE_VALUES = (1, 5, 5, 6)
 
 
 class DQNAgent:
@@ -26,8 +31,23 @@ class DQNAgent:
         # An array with last n steps for training
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
 
+        # Used to count when to update target network with main network's weights
+        self.target_update_counter = 0
+
+        # Custom tensorboard object
+        self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(MODEL_NAME, int(time.time())))
+
     def create_model(self):
-        pass
+        model = Sequential()
+        model.add(Reshape((5, 5, 6), input_shape=OBSERVATION_SPACE_VALUES))
+        model.add(Conv2D(256, (3, 3)))
+        model.add(Activation('relu'))
+
+        model.add(Flatten())
+        model.add(Dense(32))
+        model.add(Dense(1))
+        model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['accuracy'])
+        return model
 
     def train(self, terminal_state, step):
         '''
@@ -62,14 +82,17 @@ class DQNAgent:
 
             # Update Q value for given state
             current_qs = current_qs_list[index]
-            current_qs[action] = new_q
+            current_qs[0] = new_q
 
             # And append to our training data
             X.append(current_state)
             y.append(current_qs)
             # Fit on all samples as one batch, log only on terminal state
 
-        self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False)
+        self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE,
+                       verbose=0,
+                       callbacks=[self.tensorboard] if terminal_state else None,
+                       shuffle=False)
         # Update target network counter every episode
         if terminal_state:
             self.target_update_counter += 1
@@ -81,4 +104,7 @@ class DQNAgent:
 
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
+
+    def get_qs(self, state):
+        return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
 

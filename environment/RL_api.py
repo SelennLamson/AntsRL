@@ -148,44 +148,27 @@ class RLApi (EnvObject):
 
 		return perception, state
 
-	def step(self, action):
-		"""
-		Take a list as an input containing only NaN value except for the action to do. Return the reward.
-		:param action:
-		:return:
-		"""
-		if action[0] is not None:
-			self.ants.update_mandibles(action[0])
-		elif action[1] is not None:
-			self.ants.activate_all_pheromones(action[1])
-		elif action[2] is not None:
-			self.ants.rotate_ants(action[2] * self.max_rot_speed)
-		elif action[3] is not None:
-			fwd = action[3] * self.max_speed * (1 - self.ants.holding * self.carry_speed_reduction)
-			fwd[fwd < 0] *= self.backward_speed_reduction
-			self.ants.forward_ants(fwd)
 
-		reward = self.compute_ants_distance() - self.original_ants_distance # Delta between original distance and actual distance
-		perception, state = self.observation()
-
-		done = self.environment.max_time == self.environment.timestep
-
-		return perception, reward, done
-
-
-	def action(self, forward, turn, open_close_mandibles, on_off_pheromones):
+	def step(self, forward, turn, open_close_mandibles, on_off_pheromones):
 		""" Applies the different ant actions to the ant group.
 		:param forward: How much the ant should move forward (-1;1), will be multiplied by max_speed
 		:param turn: How much the ant should turn right (-1;1), will be multiplied by max_rot_speed
 		:param open_close_mandibles: Are the mandibles opened or closed
 		:param on_off_pheromones: Are the pheromones activated or not
 		"""
-		self.ants.update_mandibles(open_close_mandibles)
-		self.ants.activate_all_pheromones(on_off_pheromones)
+		#self.ants.update_mandibles(open_close_mandibles)
+		#self.ants.activate_all_pheromones(on_off_pheromones)
 		self.ants.rotate_ants(turn * self.max_rot_speed)
 
 		fwd = forward * self.max_speed * (1 - self.ants.holding * self.carry_speed_reduction)
 		fwd[fwd < 0] *= self.backward_speed_reduction
 		self.ants.forward_ants(fwd)
+
+		reward = self.compute_ants_distance() - self.original_ants_distance  # Delta between original distance and actual distance
+		perception, state = self.observation()
+
+		done = self.environment.max_time == self.environment.timestep
+
+		return perception, reward, done
 
 
