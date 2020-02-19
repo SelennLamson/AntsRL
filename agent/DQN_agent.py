@@ -11,10 +11,10 @@ from ModifiedTensorBoard import ModifiedTensorBoard
 MODEL_NAME = 'CNN'
 
 REPLAY_MEMORY_SIZE = 50000
-MIN_REPLAY_MEMORY_SIZE = 100
-MINIBATCH_SIZE = 64
+MIN_REPLAY_MEMORY_SIZE = 300
+MINIBATCH_SIZE = 128
 DISCOUNT = 0.2
-UPDATE_TARGET_EVERY = 3
+UPDATE_TARGET_EVERY = 2
 OBSERVATION_SPACE_VALUES = (1, 5, 5, 6)
 
 
@@ -45,7 +45,7 @@ class DQNAgent:
 
         model.add(Flatten())
         model.add(Dense(32))
-        model.add(Dense(1))
+        model.add(Dense(5, activation='linear'))
         model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['accuracy'])
         return model
 
@@ -82,7 +82,7 @@ class DQNAgent:
 
             # Update Q value for given state
             current_qs = current_qs_list[index]
-            current_qs[0] = new_q
+            current_qs[action] = new_q
 
             # And append to our training data
             X.append(current_state)

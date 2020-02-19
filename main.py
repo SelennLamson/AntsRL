@@ -15,7 +15,7 @@ AGGREGATE_STATS_EVERY = 5
 def main():
     save_file_name = "random_agent.arl"
 
-    episodes = 10
+    episodes = 30
     steps = 200
     n_ants = 1
     epsilon = 0.1
@@ -40,32 +40,33 @@ def main():
     ep_rewards = []
 
     print("Starting simulation...")
-    for episode in tqdm(range(episodes)):
+    for episode in range(episodes):
         env = generator.generate(api)
         print('Starting epoch {}...'.format(episode))
 
         obs, state = api.observation()
         episode_reward = 0
 
-        for s in range(steps):
+        for s in tqdm(range(steps)):
             #print('Timesteps n°{}'.format(s))
-            states.append(env.save_state())
+            if episodes>20:
+                states.append(env.save_state())
 
             if np.random.random() > epsilon:
                 # Ask network for next action
-                value = agent.get_qs(obs)
-                action = (value[0], 1, np.zeros(n_ants), np.zeros(n_ants))
+                value = np.argmax(agent.get_qs(obs))
+                action = (1, value, np.zeros(n_ants), np.zeros(n_ants))
 
             else:
                 # Random turn
-                action = (random.uniform(0, 1), 1, np.zeros(n_ants), np.zeros(n_ants))
+                action = (1, np.random.randint(0, 5), np.zeros(n_ants), np.zeros(n_ants))
             # Execute the action
             new_state, reward, done = api.step(*action)
             # Add the reward to total reward of episode
             episode_reward += reward
             env.update()
             # Update replay memory with new action and states
-            agent.update_replay_memory((obs, action, reward, new_state, done))
+            agent.update_replay_memory((obs, action[0], reward, new_state, done))
             # Train the neural network
             agent.train(done, s)
             # Set obs to the new state
