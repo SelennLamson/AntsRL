@@ -15,11 +15,10 @@ MIN_REPLAY_MEMORY_SIZE = 300
 MINIBATCH_SIZE = 128
 DISCOUNT = 0.2
 UPDATE_TARGET_EVERY = 2
-OBSERVATION_SPACE_VALUES = (1, 5, 5, 6)
 
 
 class DQNAgent:
-    def __init__(self):
+    def __init__(self, n_ants):
 
         # Main model
         self.model = self.create_model()
@@ -37,15 +36,17 @@ class DQNAgent:
         # Custom tensorboard object
         self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(MODEL_NAME, int(time.time())))
 
+        self.observation_space = (n_ants, 5, 5, 6)
+
     def create_model(self):
         model = Sequential()
-        model.add(Reshape((5, 5, 6), input_shape=OBSERVATION_SPACE_VALUES))
+        model.add(Reshape((5, 5, 6), input_shape=self.observation_space))
         model.add(Conv2D(256, (3, 3)))
         model.add(Activation('relu'))
 
         model.add(Flatten())
         model.add(Dense(32))
-        model.add(Dense(5, activation='linear'))
+        model.add(Dense(3, activation='linear'))
         model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['accuracy'])
         return model
 

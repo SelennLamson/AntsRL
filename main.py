@@ -15,9 +15,9 @@ AGGREGATE_STATS_EVERY = 5
 def main():
     save_file_name = "random_agent.arl"
 
-    episodes = 30
+    episodes = 50
     steps = 200
-    n_ants = 1
+    n_ants = 2
     epsilon = 0.1
     states = []
 
@@ -36,7 +36,7 @@ def main():
     api.save_perceptive_field = True
     visualizer = Visualizer()
 
-    agent = DQNAgent()
+    agent = DQNAgent(n_ants)
     ep_rewards = []
 
     print("Starting simulation...")
@@ -59,7 +59,7 @@ def main():
 
             else:
                 # Random turn
-                action = (1, np.random.randint(0, 5), np.zeros(n_ants), np.zeros(n_ants))
+                action = (1, np.random.randint(0, 3), np.zeros(n_ants), np.zeros(n_ants))
             # Execute the action
             new_state, reward, done = api.step(*action)
             # Add the reward to total reward of episode
