@@ -7,10 +7,10 @@ import numpy as np
 from utils import *
 
 from environment.ants import AntsVisualization
-from environment.pheromone import Pheromone
+from environment.pheromone import PheromoneVisualization, Pheromone
 from environment.circle_obstacles import CircleObstaclesVisualization
 from environment.walls import Walls
-from environment.food import Food
+from environment.food import FoodVisualization
 from environment.RL_api import RLPerceptiveFieldVisualization
 from environment.anthill import AnthillVisualization
 
@@ -53,6 +53,7 @@ class Visualizer:
         self.rock_tile = None
         self.holding_ant = None
         self.sw = self.sh = self.ew = self.eh = 0
+        self.big_dim = 1600
 
     def setup_environment(self, env):
         # --- CREATING BACKGROUND IMAGE AND PRECOMPUTED ARRAYS ---
@@ -83,7 +84,7 @@ class Visualizer:
                 alpha = pygame.surfarray.pixels_alpha(self.rock_background)
                 alpha[:, :] = img[:, :]
                 del alpha
-            elif isinstance(obj, Pheromone):
+            elif isinstance(obj, PheromoneVisualization) or isinstance(obj, Pheromone):
                 self.PHEROMONES_FILL.append(np.array(obj.color)[AX, AX, :].repeat(self.ew, axis=0).repeat(self.eh, axis=1))
             elif isinstance(obj, AnthillVisualization):
                 alpha = pygame.surfarray.pixels_alpha(anthill)
@@ -127,7 +128,7 @@ class Visualizer:
         # --- INITIALIZING PYGAME ---
         pygame.init()
 
-        big_dim = 1600
+        big_dim = self.big_dim
         self.ew = states[0].w
         self.eh = states[0].h
         if self.ew > self.eh:
@@ -205,7 +206,7 @@ class Visualizer:
                                                               int(obj.radiuses[rock_i] * zoom_factor * 2)))
                         posx, posy = (obj.centers[rock_i] * zoom_factor).astype(int)
                         self.obstacle_layer.blit(rock_scaled, (posx - rock_scaled.get_width() / 2, posy - rock_scaled.get_height() / 2))
-                elif isinstance(obj, Pheromone) and view[3]:
+                elif isinstance(obj, PheromoneVisualization) and view[3]:
                     # Display the quantity of pheromones on the color representation layer (color indicated at initialization of pheromones)
                     alph = (obj.phero / (obj.max_val + 0.0001)) * 0.6
                     self.color_repr_img, self.color_repr_alpha = mix_alpha(self.color_repr_img,
@@ -213,7 +214,7 @@ class Visualizer:
                                                                            self.PHEROMONES_FILL[pi],
                                                                            alph)
                     pi += 1
-                elif isinstance(obj, Food) and view[4]:
+                elif isinstance(obj, FoodVisualization) and view[4]:
                     # Display the quantity of food on the color representation layer (color as constant at beginning of this script)
                     alph = obj.qte / (np.max(obj.qte) + 0.0001) * 0.3
                     self.color_repr_img, self.color_repr_alpha = mix_alpha(self.color_repr_img,

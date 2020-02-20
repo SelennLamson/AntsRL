@@ -19,6 +19,7 @@ UPDATE_TARGET_EVERY = 2
 
 class DQNAgent:
     def __init__(self, n_ants):
+        self.observation_space = (n_ants, 5, 5, 6)
 
         # Main model
         self.model = self.create_model()
@@ -36,7 +37,6 @@ class DQNAgent:
         # Custom tensorboard object
         self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(MODEL_NAME, int(time.time())))
 
-        self.observation_space = (n_ants, 5, 5, 6)
 
     def create_model(self):
         model = Sequential()
@@ -51,12 +51,11 @@ class DQNAgent:
         return model
 
     def train(self, terminal_state, step):
-        '''
+        """
         Function to train our agent. Huge thanks to @sentdex for the code and the inspiration.
         :param terminal_state:
         :param step:
-        :return:
-        '''
+        """
 
         # Start training only if certain number of samples is already saved
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:

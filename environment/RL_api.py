@@ -43,6 +43,13 @@ class RLApi (EnvObject):
 		# If set to True, will save the perceptive field of each ant as an image to display over environment during visualization.
 		self.save_perceptive_field = False
 		self.perceptive_field = None
+		self.explored_map = None
+		self.prev_explored = 0
+
+	def visualize_copy(self, newenv: Environment):
+		return RLPerceptiveFieldVisualization(newenv, self.explored_map.copy())
+		# return RLPerceptiveFieldVisualization(newenv, self.perceptive_field)
+
 
 	def register_ants(self, new_ants: Ants):
 		if self.environment is not None:
@@ -51,8 +58,9 @@ class RLApi (EnvObject):
 		self.environment = new_ants.environment
 		self.environment.add_object(self)
 		self.perceived_objects = []
-		self.original_ants_distance = self.compute_ants_distance()
 		self.original_ants_position = new_ants.xy
+		self.explored_map = np.zeros((self.environment.w, self.environment.h), dtype=bool)
+
 
 	def compute_ants_distance(self):
 		"""
@@ -64,9 +72,6 @@ class RLApi (EnvObject):
 			if isinstance(obj, Anthill):
 				center_anthill.append([obj.x, obj.y])
 		return np.linalg.norm(center_anthill - self.ants.xy)
-
-	def visualize_copy(self, newenv: Environment):
-		return RLPerceptiveFieldVisualization(newenv, self.perceptive_field)
 
 	def setup_perception(self, radius: int, objects: List[EnvObject], mask=None, forward_delta=0):
 		"""Setups perception parameters for the group of ants.
@@ -107,6 +112,9 @@ class RLApi (EnvObject):
 		abs_coords = np.round(abs_coords).astype(int)
 		abs_coords[:, :, :, 0] = np.mod(abs_coords[:, :, :, 0], self.environment.w)
 		abs_coords[:, :, :, 1] = np.mod(abs_coords[:, :, :, 1], self.environment.h)
+
+		# Writing exploration to exploration map
+		self.explored_map[abs_coords[:, :, :, 0], abs_coords[:, :, :, 1]] = True
 
 		perception = np.zeros(list(abs_coords.shape[:-1]) + [len(self.perceived_objects)])
 		for i, obj in enumerate(self.perceived_objects):
@@ -157,7 +165,7 @@ class RLApi (EnvObject):
 		:param on_off_pheromones: Are the pheromones activated or not
 		"""
 		#self.ants.update_mandibles(open_close_mandibles)
-		#self.ants.activate_all_pheromones(on_off_pheromones)
+		# self.ants.activate_all_pheromones(np.ones((self.ants.n_ants, 2)) * 10)
 		turn_actions = [-1, 0, 1]
 		self.ants.rotate_ants(turn_actions[turn_index] * self.max_rot_speed)
 
@@ -165,8 +173,12 @@ class RLApi (EnvObject):
 		fwd[fwd < 0] *= self.backward_speed_reduction
 		self.ants.forward_ants(fwd)
 
-		reward = self.compute_ants_distance() - self.original_ants_distance  # Delta between original distance and actual distance
+		# reward = self.compute_ants_distance() - self.original_ants_distance  # Delta between original distance and actual distance
 		perception, state = self.observation()
+
+		new_exp = np.sum(self.explored_map)
+		reward = new_exp - self.prev_explored
+		self.prev_explored = new_exp
 
 		done = self.environment.max_time == self.environment.timestep
 

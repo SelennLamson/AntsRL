@@ -2,11 +2,19 @@ import numpy as np
 from scipy.signal import convolve2d
 from .environment import Environment, EnvObject
 
-DIFFUSE_FACTOR = 0.005
-EVAP_FACTOR = 0.01
+DIFFUSE_FACTOR = 0.003
+EVAP_FACTOR = 0.001
 DIFFUSE_FILTER = np.ones((3, 3)) * DIFFUSE_FACTOR
 DIFFUSE_FILTER[1, 1] = 1 - 8 * DIFFUSE_FACTOR
 DIFFUSE_FILTER *= 1 - EVAP_FACTOR
+
+class PheromoneVisualization (EnvObject):
+	def __init__(self, environment: Environment, color, max_val, phero):
+		super().__init__(environment)
+		self.color = color
+		self.max_val = max_val
+		self.phero = phero.astype(np.uint8)
+
 
 class Pheromone (EnvObject):
 	def __init__(self, environment: Environment, color=(64, 64, 64), max_val=None, phero=None):
@@ -22,7 +30,7 @@ class Pheromone (EnvObject):
 			self.phero = phero.copy()
 
 	def visualize_copy(self, newenv):
-		return Pheromone(newenv, self.color, self.max_val, self.phero)
+		return PheromoneVisualization(newenv, self.color, self.max_val, self.phero)
 
 	def add_pheromones(self, add_xy, phero_strength):
 		if len(add_xy) == 0:

@@ -16,12 +16,12 @@ def main():
     save_file_name = "random_agent.arl"
 
     episodes = 50
-    steps = 200
-    n_ants = 2
+    steps = 500
+    n_ants = 1
     epsilon = 0.1
     states = []
 
-    generator = EnvironmentGenerator(w=200,
+    generator = EnvironmentGenerator(w=100,
                                      h=100,
                                      n_ants=n_ants,
                                      n_pheromones=2,
@@ -42,14 +42,15 @@ def main():
     print("Starting simulation...")
     for episode in range(episodes):
         env = generator.generate(api)
-        print('Starting epoch {}...'.format(episode))
+        api.ants.activate_all_pheromones(np.ones((api.ants.n_ants, 2)) * 10)
+        print('\nStarting epoch {}...'.format(episode))
 
         obs, state = api.observation()
         episode_reward = 0
 
         for s in tqdm(range(steps)):
             #print('Timesteps n°{}'.format(s))
-            if episodes>20:
+            if (episode - 1) % 10 == 0:
                 states.append(env.save_state())
 
             if np.random.random() > epsilon:
@@ -88,4 +89,7 @@ def main():
 
 
 if __name__ == '__main__':
+    # visualiser = Visualizer()
+    # visualiser.big_dim = 800
+    # visualiser.visualize()
     main()
