@@ -1,5 +1,6 @@
 import pickle
 from tqdm import tqdm
+import datetime
 
 from gui.visualize import Visualizer
 
@@ -11,11 +12,12 @@ from agent.DQN_agent import DQNAgent
 import tensorflow as tf
 
 AGGREGATE_STATS_EVERY = 5
+SAVE_MODEL = True
 
 def main():
     save_file_name = "random_agent.arl"
 
-    episodes = 50
+    episodes = 3
     steps = 500
     n_ants = 1
     epsilon = 0.1
@@ -74,6 +76,8 @@ def main():
             obs = new_state
 
         ep_rewards.append(episode_reward)
+        print('Reward for this episode :', episode_reward)
+
         if not episode % AGGREGATE_STATS_EVERY or episode == 1:
             average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:]) / len(ep_rewards[-AGGREGATE_STATS_EVERY:])
             min_reward = min(ep_rewards[-AGGREGATE_STATS_EVERY:])
@@ -83,6 +87,11 @@ def main():
 
 
     pickle.dump(states, open("saved/" + save_file_name, "wb"))
+
+    if SAVE_MODEL:
+        date = datetime.datetime.now()
+        model_name = str(date.day) + '_' + str(date.month) + '_' + str(date.hour) + '_CNN.h5'
+        agent.save_model(model_name)
 
     # VISUALIZE THE EPISODE
     visualizer.visualize(save_file_name)

@@ -3,7 +3,7 @@ import random
 import numpy as np
 import time
 
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten, Reshape
 from keras.optimizers import Adam
 from ModifiedTensorBoard import ModifiedTensorBoard
@@ -18,14 +18,20 @@ UPDATE_TARGET_EVERY = 2
 
 
 class DQNAgent:
-    def __init__(self, n_ants):
+    def __init__(self, n_ants, use_trained_model=None):
         self.observation_space = (n_ants, 5, 5, 6)
 
         # Main model
         self.model = self.create_model()
 
+
         # Target network
         self.target_model = self.create_model()
+
+        if use_trained_model is not None:
+            self.model = self.import_model(use_trained_model)
+            self.target_model = self.import_model(use_trained_model)
+
         self.target_model.set_weights(self.model.get_weights())
 
         # An array with last n steps for training
@@ -107,4 +113,11 @@ class DQNAgent:
 
     def get_qs(self, state):
         return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
+
+
+    def save_model(self, model_name):
+        self.model.save('./agent/models/'+model_name)
+
+    def import_model(self, model_name):
+        return load_model('./agent/models/'+model_name)
 
