@@ -11,15 +11,17 @@ from ModifiedTensorBoard import ModifiedTensorBoard
 MODEL_NAME = 'CNN'
 
 REPLAY_MEMORY_SIZE = 50000
-MIN_REPLAY_MEMORY_SIZE = 300
-MINIBATCH_SIZE = 128
-DISCOUNT = 0.2
-UPDATE_TARGET_EVERY = 2
+MIN_REPLAY_MEMORY_SIZE = 1000
+MINIBATCH_SIZE = 256
+DISCOUNT = 0.5
+UPDATE_TARGET_EVERY = 1
 
 
 class DQNAgent:
     def __init__(self, n_ants, use_trained_model=None):
-        self.observation_space = (n_ants, 5, 5, 6)
+        self.mean_loss = 0
+
+        self.observation_space = (5, 5, 6)
 
         # Main model
         self.model = self.create_model()
@@ -46,14 +48,15 @@ class DQNAgent:
 
     def create_model(self):
         model = Sequential()
-        model.add(Reshape((5, 5, 6), input_shape=self.observation_space))
-        model.add(Conv2D(256, (3, 3)))
-        model.add(Activation('relu'))
+        #model.add(Reshape((5, 5, 6), input_shape=self.observation_space))
 
-        model.add(Flatten())
+        #model.add(Conv2D(256, (3, 3)))
+        #model.add(Activation('relu'))
+
+        model.add(Flatten(input_shape=self.observation_space))
         model.add(Dense(32))
         model.add(Dense(3, activation='linear'))
-        model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['accuracy'])
+        model.compile(loss="mse", optimizer=Adam(lr=0.0001), metrics=['accuracy'])
         return model
 
     def train(self, terminal_state, step):
@@ -95,10 +98,14 @@ class DQNAgent:
             y.append(current_qs)
             # Fit on all samples as one batch, log only on terminal state
 
-        self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE,
-                       verbose=0,
-                       callbacks=[self.tensorboard] if terminal_state else None,
-                       shuffle=False)
+        history = self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE,
+                                 verbose=0,
+                                 callbacks=[self.tensorboard] if terminal_state else None,
+                                 shuffle=False)
+        self.mean_loss = self.mean_loss * 0.99 + history.history['loss'][0] * 0.01
+
+        print("\rMean loss:", self.mean_loss, end="")
+
         # Update target network counter every episode
         if terminal_state:
             self.target_update_counter += 1
@@ -112,7 +119,8 @@ class DQNAgent:
         self.replay_memory.append(transition)
 
     def get_qs(self, state):
-        return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
+        return self.model.predict(state)
+        #return self.model.predict(np.array(state).reshape(-1, *state.shape))
 
 
     def save_model(self, model_name):

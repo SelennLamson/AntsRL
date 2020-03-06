@@ -17,9 +17,9 @@ SAVE_MODEL = True
 def main():
     save_file_name = "random_agent.arl"
 
-    episodes = 3
+    episodes = 30
     steps = 500
-    n_ants = 1
+    n_ants = 5
     epsilon = 0.1
     states = []
 
@@ -48,37 +48,38 @@ def main():
         print('\nStarting epoch {}...'.format(episode))
 
         obs, state = api.observation()
-        episode_reward = 0
+        episode_reward = np.zeros(n_ants)
 
-        for s in tqdm(range(steps)):
+        for s in range(steps):
             #print('Timesteps n°{}'.format(s))
-            if (episode - 1) % 10 == 0:
+            if (episode + 1) % 10 == 0 or episode == 0:
                 states.append(env.save_state())
 
             if np.random.random() > epsilon:
                 # Ask network for next action
-                value = np.argmax(agent.get_qs(obs))
-                action = (1, value, np.zeros(n_ants), np.zeros(n_ants))
+                value = np.argmax(agent.get_qs(obs), axis=1)
+                action = (np.ones(n_ants), value, np.zeros(n_ants), np.zeros(n_ants))
 
             else:
                 # Random turn
-                action = (1, np.random.randint(0, 3), np.zeros(n_ants), np.zeros(n_ants))
+                action = (np.ones(n_ants), np.random.randint(low=0, high=3, size=n_ants), np.zeros(n_ants), np.zeros(n_ants))
             # Execute the action
             new_state, reward, done = api.step(*action)
             # Add the reward to total reward of episode
             episode_reward += reward
             env.update()
             # Update replay memory with new action and states
-            agent.update_replay_memory((obs, action[0], reward, new_state, done))
+            for i_ant in range(n_ants):
+                agent.update_replay_memory((obs[i_ant], action[1][i_ant], reward[i_ant], new_state[i_ant], done))
             # Train the neural network
             agent.train(done, s)
             # Set obs to the new state
             obs = new_state
 
         ep_rewards.append(episode_reward)
-        print('Reward for this episode :', episode_reward)
+        print('\nReward for this episode :', episode_reward)
 
-        if not episode % AGGREGATE_STATS_EVERY or episode == 1:
+        if False and (not episode % AGGREGATE_STATS_EVERY or episode == 1):
             average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:]) / len(ep_rewards[-AGGREGATE_STATS_EVERY:])
             min_reward = min(ep_rewards[-AGGREGATE_STATS_EVERY:])
             max_reward = max(ep_rewards[-AGGREGATE_STATS_EVERY:])
@@ -94,11 +95,12 @@ def main():
         agent.save_model(model_name)
 
     # VISUALIZE THE EPISODE
+    visualizer.big_dim = 800
     visualizer.visualize(save_file_name)
 
 
 if __name__ == '__main__':
-    # visualiser = Visualizer()
-    # visualiser.big_dim = 800
-    # visualiser.visualize()
+    #visualiser = Visualizer()
+    #visualiser.big_dim = 800
+    #visualiser.visualize()
     main()

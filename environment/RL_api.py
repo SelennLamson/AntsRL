@@ -45,6 +45,7 @@ class RLApi (EnvObject):
 		self.perceptive_field = None
 		self.explored_map = None
 		self.prev_explored = 0
+		self.reward = None
 
 	def visualize_copy(self, newenv: Environment):
 		return RLPerceptiveFieldVisualization(newenv, self.explored_map.copy())
@@ -60,6 +61,8 @@ class RLApi (EnvObject):
 		self.perceived_objects = []
 		self.original_ants_position = new_ants.xy
 		self.explored_map = np.zeros((self.environment.w, self.environment.h), dtype=bool)
+		self.prev_explored = 0
+		self.reward = np.zeros(new_ants.n_ants, dtype=int)
 
 
 	def compute_ants_distance(self):
@@ -113,6 +116,9 @@ class RLApi (EnvObject):
 		abs_coords[:, :, :, 0] = np.mod(abs_coords[:, :, :, 0], self.environment.w)
 		abs_coords[:, :, :, 1] = np.mod(abs_coords[:, :, :, 1], self.environment.h)
 
+		# Computing how many new blocks were explored by each ant
+		self.reward = np.sum(1 - self.explored_map[abs_coords[:, :, :, 0], abs_coords[:, :, :, 1]], axis=(1, 2)) / 10
+
 		# Writing exploration to exploration map
 		self.explored_map[abs_coords[:, :, :, 0], abs_coords[:, :, :, 1]] = True
 
@@ -156,7 +162,6 @@ class RLApi (EnvObject):
 
 		return perception, state
 
-
 	def step(self, forward, turn_index, open_close_mandibles, on_off_pheromones):
 		""" Applies the different ant actions to the ant group.
 		:param forward: How much the ant should move forward (-1;1), will be multiplied by max_speed
@@ -166,7 +171,7 @@ class RLApi (EnvObject):
 		"""
 		#self.ants.update_mandibles(open_close_mandibles)
 		# self.ants.activate_all_pheromones(np.ones((self.ants.n_ants, 2)) * 10)
-		turn_actions = [-1, 0, 1]
+		turn_actions = np.array([-1, 0, 1])
 		self.ants.rotate_ants(turn_actions[turn_index] * self.max_rot_speed)
 
 		fwd = forward * self.max_speed * (1 - self.ants.holding * self.carry_speed_reduction)
@@ -176,12 +181,12 @@ class RLApi (EnvObject):
 		# reward = self.compute_ants_distance() - self.original_ants_distance  # Delta between original distance and actual distance
 		perception, state = self.observation()
 
-		new_exp = np.sum(self.explored_map)
-		reward = new_exp - self.prev_explored
-		self.prev_explored = new_exp
+		#new_exp = np.sum(self.explored_map)
+		#reward = (new_exp - self.prev_explored) / 10
+		#self.prev_explored = new_exp
 
 		done = self.environment.max_time == self.environment.timestep
 
-		return perception, reward, done
+		return perception, self.reward, done
 
 
