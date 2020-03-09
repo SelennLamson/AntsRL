@@ -17,9 +17,10 @@ DISCOUNT = 0.5
 UPDATE_TARGET_EVERY = 1
 
 
-class DQNAgent:
+class ExploreAgent:
     def __init__(self, n_ants, use_trained_model=None):
         self.mean_loss = 0
+        self.name = "Explore_Agent"
 
         self.observation_space = (5, 5, 6)
 

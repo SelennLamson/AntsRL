@@ -8,18 +8,21 @@ from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
 from agent.random_agent import RandomAgent
-from agent.DQN_agent import DQNAgent
+from agent.Explore_Agent import ExploreAgent
 import tensorflow as tf
 
 AGGREGATE_STATS_EVERY = 5
-SAVE_MODEL = True
+SAVE_MODEL = False
+
+TRAINING = False
+USE_MODEL = "6_3_11_CNN.h5"
 
 def main():
     save_file_name = "random_agent.arl"
 
-    episodes = 30
+    episodes = 10
     steps = 500
-    n_ants = 5
+    n_ants = 50
     epsilon = 0.1
     states = []
 
@@ -38,7 +41,7 @@ def main():
     api.save_perceptive_field = True
     visualizer = Visualizer()
 
-    agent = DQNAgent(n_ants)
+    agent = ExploreAgent(n_ants, use_trained_model=USE_MODEL)
     ep_rewards = []
 
     print("Starting simulation...")
@@ -71,27 +74,22 @@ def main():
             # Update replay memory with new action and states
             for i_ant in range(n_ants):
                 agent.update_replay_memory((obs[i_ant], action[1][i_ant], reward[i_ant], new_state[i_ant], done))
-            # Train the neural network
-            agent.train(done, s)
+
+            if TRAINING:
+                # Train the neural network
+                agent.train(done, s)
             # Set obs to the new state
             obs = new_state
 
         ep_rewards.append(episode_reward)
         print('\nReward for this episode :', episode_reward)
 
-        if False and (not episode % AGGREGATE_STATS_EVERY or episode == 1):
-            average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:]) / len(ep_rewards[-AGGREGATE_STATS_EVERY:])
-            min_reward = min(ep_rewards[-AGGREGATE_STATS_EVERY:])
-            max_reward = max(ep_rewards[-AGGREGATE_STATS_EVERY:])
-            tf.summary.scalar("my_metric", 0.5, step=episode)
-            agent.tensorboard.writer.flush()
-
 
     pickle.dump(states, open("saved/" + save_file_name, "wb"))
 
     if SAVE_MODEL:
         date = datetime.datetime.now()
-        model_name = str(date.day) + '_' + str(date.month) + '_' + str(date.hour) + '_CNN.h5'
+        model_name = str(date.day) + '_' + str(date.month) + '_' + str(date.hour) + '_' + agent.name+'.h5'
         agent.save_model(model_name)
 
     # VISUALIZE THE EPISODE
