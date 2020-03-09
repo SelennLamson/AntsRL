@@ -2,8 +2,6 @@ import sys
 import os
 import pygame
 import pickle
-from scipy.signal import convolve2d
-import numpy as np
 from utils import *
 
 from environment.ants import AntsVisualization
@@ -11,7 +9,7 @@ from environment.pheromone import PheromoneVisualization, Pheromone
 from environment.circle_obstacles import CircleObstaclesVisualization
 from environment.walls import Walls
 from environment.food import FoodVisualization
-from environment.RL_api import RLPerceptiveFieldVisualization
+from environment.RL_api import RLVisualization
 from environment.anthill import AnthillVisualization
 
 FOOD_COLOR = (64, 255, 64)
@@ -39,7 +37,7 @@ class Visualizer:
         self.background = None
         self.rock_background = None
         self.FOOD_FILL = None
-        self.PERCEPTIVE_FIELD_FILL = None
+        self.RL_FILL = None
         self.PHEROMONES_FILL = None
         self.ants_layer = None
         self.obstacle_layer = None
@@ -71,7 +69,7 @@ class Visualizer:
         anthill.fill(ANTHILL_COLOR)
 
         self.FOOD_FILL = np.array(FOOD_COLOR)[AX, AX, :].repeat(self.ew, axis=0).repeat(self.eh, axis=1)
-        self.PERCEPTIVE_FIELD_FILL = np.array(PERCEPTIVE_FIELD_COLOR)[AX, AX, :].repeat(self.ew, axis=0).repeat(self.eh, axis=1)
+        self.RL_FILL = np.array(PERCEPTIVE_FIELD_COLOR)[AX, AX, :].repeat(self.ew, axis=0).repeat(self.eh, axis=1)
         self.PHEROMONES_FILL = []
 
         for obj in env.objects:
@@ -198,6 +196,7 @@ class Visualizer:
                         img = self.ant if obj.holding[i] == 0 else self.holding_ant
                         rotated = pygame.transform.rotate(img, t / np.pi * 180 - 90)
                         self.ants_layer.blit(rotated, (x - rotated.get_width()/2, y - rotated.get_height()/2))
+
                 elif isinstance(obj, CircleObstaclesVisualization):
                     # Display a scaled rock image at each location
                     for rock_i in range(len(obj.centers)):
@@ -206,6 +205,7 @@ class Visualizer:
                                                               int(obj.radiuses[rock_i] * zoom_factor * 2)))
                         posx, posy = (obj.centers[rock_i] * zoom_factor).astype(int)
                         self.obstacle_layer.blit(rock_scaled, (posx - rock_scaled.get_width() / 2, posy - rock_scaled.get_height() / 2))
+
                 elif isinstance(obj, PheromoneVisualization) and view[3]:
                     # Display the quantity of pheromones on the color representation layer (color indicated at initialization of pheromones)
                     alph = (obj.phero / (obj.max_val + 0.0001)) * 0.6
@@ -214,6 +214,7 @@ class Visualizer:
                                                                            self.PHEROMONES_FILL[pi],
                                                                            alph)
                     pi += 1
+
                 elif isinstance(obj, FoodVisualization) and view[4]:
                     # Display the quantity of food on the color representation layer (color as constant at beginning of this script)
                     alph = obj.qte / (np.max(obj.qte) + 0.0001) * 0.3
@@ -221,17 +222,20 @@ class Visualizer:
                                                                            self.color_repr_alpha,
                                                                            self.FOOD_FILL,
                                                                            alph)
-                elif isinstance(obj, RLPerceptiveFieldVisualization) and view[2]:
+
+                elif isinstance(obj, RLVisualization) and view[2]:
                     # Display the perceptive field on the color representation layer (color as constant at beginning of this script)
-                    if obj.perceptive_field is not None:
-                        alph = obj.perceptive_field * 0.3
+                    if obj.heatmap is not None:
+                        alph = (obj.heatmap / np.max(obj.heatmap)) * 0.3
                         self.color_repr_img, self.color_repr_alpha = mix_alpha(self.color_repr_img,
                                                                                self.color_repr_alpha,
-                                                                               self.PERCEPTIVE_FIELD_FILL,
+                                                                               self.RL_FILL,
                                                                                alph)
+
                 elif isinstance(obj, AnthillVisualization):
                     txt = font.render("FOOD IN ANTHILL: " + str(int(obj.food)), True, (255, 255, 255))
                     screen.blit(txt, (self.sw - 30 - txt.get_width(), self.sh + 13 + margin_top))
+
             step_str = str(step)
             if step < 1000:
                 step_str = " " + step_str

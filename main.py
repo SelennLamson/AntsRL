@@ -1,104 +1,138 @@
 import pickle
 from tqdm import tqdm
 import datetime
+import sys
+import tensorflow as tf
 
 from gui.visualize import Visualizer
 
 from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
-from agent.random_agent import RandomAgent
-from agent.Explore_Agent import ExploreAgent
-import tensorflow as tf
+from agents.random_agent import RandomAgent
+from agents.explore_agent import ExploreAgent
+from environment.rewards.exploration_reward import ExplorationReward
 
-AGGREGATE_STATS_EVERY = 5
-SAVE_MODEL = False
 
-TRAINING = False
-USE_MODEL = "6_3_11_CNN.h5"
+# -------------------------------------------
+#               Main parameters
+# -------------------------------------------
+aggregate_stats_every = 5
+save_model = False
+training = True
+use_model = None
+only_visualize = False
+# use_model = "9_3_11_Explore_Agent.h5"
+save_file_name = "random_agent.arl"
+# -------------------------------------------
+
 
 def main():
-    save_file_name = "random_agent.arl"
+	episodes = 30
+	steps = 500
+	n_ants = 10
+	states = []
 
-    episodes = 10
-    steps = 500
-    n_ants = 50
-    epsilon = 0.1
-    states = []
+	# Setting up environment
+	generator = EnvironmentGenerator(w=200,
+									 h=200,
+									 n_ants=n_ants,
+									 n_pheromones=2,
+									 n_rocks=0,
+									 food_generator=CirclesGenerator(10, 5, 10),
+									 walls_generator=PerlinGenerator(scale=22.0, density=0.06),
+									 max_steps=steps)
 
-    generator = EnvironmentGenerator(w=100,
-                                     h=100,
-                                     n_ants=n_ants,
-                                     n_pheromones=2,
-                                     n_rocks=0,
-                                     food_generator=CirclesGenerator(10, 5, 10),
-                                     walls_generator=PerlinGenerator(scale=22.0, density=0.05),
-                                     max_steps=steps)
-    api = RLApi(max_speed=1,
-                max_rot_speed=45,
-                carry_speed_reduction=0.05,
-                backward_speed_reduction=0.5)
-    api.save_perceptive_field = True
-    visualizer = Visualizer()
+	# Setting up RL Reward
+	reward = ExplorationReward()
 
-    agent = ExploreAgent(n_ants, use_trained_model=USE_MODEL)
-    ep_rewards = []
+	# Setting up RL Api
+	api = RLApi(reward=reward,
+				max_speed=1,
+				max_rot_speed=45,
+				carry_speed_reduction=0.05,
+				backward_speed_reduction=0.5)
+	api.save_perceptive_field = True
 
-    print("Starting simulation...")
-    for episode in range(episodes):
-        env = generator.generate(api)
-        api.ants.activate_all_pheromones(np.ones((api.ants.n_ants, 2)) * 10)
-        print('\nStarting epoch {}...'.format(episode))
+	# Setting up RL Agent
+	agent = ExploreAgent(epsilon=0.1,
+						 discount=0.5,
+						 rotations=3)
+	agent_is_setup = False
 
-        obs, state = api.observation()
-        episode_reward = np.zeros(n_ants)
+	avg_loss = None
 
-        for s in range(steps):
-            #print('Timesteps n°{}'.format(s))
-            if (episode + 1) % 10 == 0 or episode == 0:
-                states.append(env.save_state())
+	print("Starting simulation...")
+	for episode in range(episodes):
+		env = generator.generate(api)
+		print('\n--- Episode {}/{} ---'.format(episode, episodes))
 
-            if np.random.random() > epsilon:
-                # Ask network for next action
-                value = np.argmax(agent.get_qs(obs), axis=1)
-                action = (np.ones(n_ants), value, np.zeros(n_ants), np.zeros(n_ants))
+		# Setups the agents only once
+		if not agent_is_setup:
+			agent.setup(api, use_model)
+			agent_is_setup = True
 
-            else:
-                # Random turn
-                action = (np.ones(n_ants), np.random.randint(low=0, high=3, size=n_ants), np.zeros(n_ants), np.zeros(n_ants))
-            # Execute the action
-            new_state, reward, done = api.step(*action)
-            # Add the reward to total reward of episode
-            episode_reward += reward
-            env.update()
-            # Update replay memory with new action and states
-            for i_ant in range(n_ants):
-                agent.update_replay_memory((obs[i_ant], action[1][i_ant], reward[i_ant], new_state[i_ant], done))
+		# Initializes the agents on the new environment
+		agent.initialize(api)
 
-            if TRAINING:
-                # Train the neural network
-                agent.train(done, s)
-            # Set obs to the new state
-            obs = new_state
+		obs, state = api.observation()
+		episode_reward = np.zeros(n_ants)
 
-        ep_rewards.append(episode_reward)
-        print('\nReward for this episode :', episode_reward)
+		for s in range(steps):
+			if (episode + 1) % 10 == 0 or episode == 0 or not training:
+				states.append(env.save_state())
+
+			# Compute the next action of the agents
+			action = agent.get_action(obs, training)
+
+			# Execute the action
+			new_state, reward, done = api.step(*action)
+
+			# Add the reward to total reward of episode
+			episode_reward += reward
+
+			# Update replay memory with new action and states
+			agent.update_replay_memory(obs, action, reward, new_state, done)
+
+			# Train the neural network
+			if training:
+				loss = agent.train(done, s)
+
+				if avg_loss is None:
+					avg_loss = loss
+				else:
+					avg_loss = 0.99 * avg_loss + 0.01 * loss
+
+			# Set obs to the new state
+			obs = new_state
+
+			if (s + 1) % 10 == 0:
+				mean_reward = episode_reward.mean()
+				max_reward = episode_reward.max()
+				min_reward = episode_reward.min()
+				var_reward = episode_reward.std()
+				total_reward = episode_reward.sum()
+
+				print("\rAverage loss: {:.5f} -- ".format(avg_loss),
+					  "Episode reward stats: mean {:.2f} - min {:.2f} - max {:.2f} - std {:.2f} - total {:.2f}".format(mean_reward, min_reward, max_reward, var_reward, total_reward),
+					  end="")
+
+			# Pass new step
+			env.update()
 
 
-    pickle.dump(states, open("saved/" + save_file_name, "wb"))
+	pickle.dump(states, open("saved/" + save_file_name, "wb"))
 
-    if SAVE_MODEL:
-        date = datetime.datetime.now()
-        model_name = str(date.day) + '_' + str(date.month) + '_' + str(date.hour) + '_' + agent.name+'.h5'
-        agent.save_model(model_name)
-
-    # VISUALIZE THE EPISODE
-    visualizer.big_dim = 800
-    visualizer.visualize(save_file_name)
+	if save_model and training:
+		date = datetime.datetime.now()
+		model_name = str(date.day) + '_' + str(date.month) + '_' + str(date.hour) + '_' + agent.name+'.h5'
+		agent.save_model(model_name)
 
 
 if __name__ == '__main__':
-    #visualiser = Visualizer()
-    #visualiser.big_dim = 800
-    #visualiser.visualize()
-    main()
+	if not only_visualize:
+		main()
+
+	visualiser = Visualizer()
+	visualiser.big_dim = 800
+	visualiser.visualize(save_file_name)
