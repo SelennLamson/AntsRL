@@ -17,7 +17,7 @@ MODEL_NAME = 'CNN'
 
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MINIBATCH_SIZE = 5
+MINIBATCH_SIZE = 256
 UPDATE_TARGET_EVERY = 1
 
 
@@ -32,6 +32,12 @@ class ReplayMemoryDataset(Dataset):
 		self.new_states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
 		self.dones = torch.zeros(max_len, dtype=bool)
 
+		self.states.requires_grad = False
+		self.actions.requires_grad = False
+		self.rewards.requires_grad = False
+		self.new_states.requires_grad = False
+		self.dones.requires_grad = False
+
 		self.head = 0
 		self.fill = 0
 
@@ -41,7 +47,6 @@ class ReplayMemoryDataset(Dataset):
 	def __getitem__(self, idx):
 		if torch.is_tensor(idx):
 			idx = idx.tolist()
-
 		return self.states[idx], self.actions[idx], self.rewards[idx], self.new_states[idx], self.dones[idx]
 
 	def random_access(self, n):
@@ -107,22 +112,25 @@ class ExploreAgentPytorch(Agent):
 
 		# Used to count when to update target network with main network's weights
 		self.target_update_counter = 0
+		self.state = None
 
 	def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
 		super(ExploreAgentPytorch, self).setup(rl_api, trained_model)
 
 		self.replay_memory = ReplayMemoryDataset(REPLAY_MEMORY_SIZE, self.observation_space)
+		self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
 		# Main model
 		self.model = ExploreModel(self.observation_space, self.rotations)
 		self.target_model = ExploreModel(self.observation_space, self.rotations)
 		self.criterion = nn.MSELoss()
-		self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
+		self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
 
 		if trained_model is not None:
 			self.load_model(trained_model)
 
 		self.target_model.load_state_dict(self.model.state_dict())
+		self.target_model.eval()
 
 	def initialize(self, rl_api: RLApi):
 		rl_api.ants.activate_all_pheromones(np.ones((self.n_ants, len([obj for obj in rl_api.perceived_objects if isinstance(obj, Pheromone)]))) * 10)
@@ -134,22 +142,21 @@ class ExploreAgentPytorch(Agent):
 
 		mem_states, mem_actions, mem_rewards, mem_new_states, mem_done = self.replay_memory.random_access(MINIBATCH_SIZE)
 
-		current_qs = self.model(mem_states)
-
 		with torch.no_grad():
 			future_qs = self.target_model(mem_new_states)
 
 			# Non-terminal states get current reward plus discounted future reward
-			max_future_qs = torch.max(future_qs, dim=1)[0]
-			new_qs = mem_rewards + self.discount * max_future_qs
+			max_future_qs = torch.max(future_qs, dim=1).values
+			new_qs = (mem_rewards + self.discount * max_future_qs) * ~mem_done
 
 			# Terminal states only gets current reward
-			new_qs = mem_rewards * mem_done + new_qs * ~mem_done
+			new_qs += mem_rewards * mem_done
 
-			target_qs = current_qs.clone()
+			target_qs = self.model(mem_states)
 			target_qs[:, mem_actions.tolist()] = new_qs
 
-		loss = self.criterion(current_qs, target_qs)
+		# loss = self.criterion(self.model(mem_states), target_qs)
+		loss = torch.sum((self.model(mem_states) - target_qs)**2) / MINIBATCH_SIZE
 
 		self.optimizer.zero_grad()
 		loss.backward()
@@ -162,6 +169,7 @@ class ExploreAgentPytorch(Agent):
 		# If counter reaches set value, update target network with weights of main network
 		if self.target_update_counter >= UPDATE_TARGET_EVERY:
 			self.target_model.load_state_dict(self.model.state_dict())
+			self.target_model.eval()
 			self.target_update_counter = 0
 
 		return loss.item()
@@ -175,8 +183,8 @@ class ExploreAgentPytorch(Agent):
 		if random.random() > self.epsilon or not training:
 			# Ask network for next action
 			with torch.no_grad():
-				predict = self.target_model(torch.Tensor(state)).numpy()
-			rotation = np.argmax(predict, axis=1) - self.rotations // 2
+				predict = torch.max(self.target_model(torch.Tensor(state)), dim=1).indices.numpy()
+			rotation = predict - self.rotations // 2
 		else:
 			# Random turn
 			rotation = np.random.randint(low=0, high=self.rotations, size=self.n_ants) - self.rotations // 2
@@ -184,8 +192,10 @@ class ExploreAgentPytorch(Agent):
 		return rotation, None, None
 
 	def save_model(self, file_name: str):
-		self.model.save('./agents/models/' + file_name)
+		# self.model.save('./agents/models/' + file_name)
+		pass
 
 	def load_model(self, file_name: str):
-		self.model = load_model('./agents/models/' + file_name)
-		self.target_model = load_model('./agents/models/' + file_name)
+		# self.model = load_model('./agents/models/' + file_name)
+		# self.target_model = load_model('./agents/models/' + file_name)
+		pass

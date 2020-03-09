@@ -57,11 +57,6 @@ class ExploreAgent(Agent):
 
 	def create_model(self):
 		model = Sequential()
-		#model.add(Reshape((5, 5, 6), input_shape=self.observation_space))
-
-		#model.add(Conv2D(256, (3, 3)))
-		#model.add(Activation('relu'))
-
 		model.add(Flatten(input_shape=self.observation_space))
 		model.add(Dense(32))
 		model.add(Dense(self.rotations, activation='linear'))

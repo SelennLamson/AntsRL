@@ -11,8 +11,10 @@ from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
 from agents.random_agent import RandomAgent
-from agents.explore_agent_pytorch import ExploreAgentPytorch
 from environment.rewards.exploration_reward import ExplorationReward
+
+from agents.explore_agent_pytorch import ExploreAgentPytorch
+from agents.explore_agent import ExploreAgent
 
 
 # -------------------------------------------
@@ -56,7 +58,7 @@ def main():
 	api.save_perceptive_field = True
 
 	# Setting up RL Agent
-	agent = ExploreAgentPytorch(epsilon=0.1,
+	agent = ExploreAgent(epsilon=0.1,
 						 discount=0.5,
 						 rotations=3)
 	agent_is_setup = False
