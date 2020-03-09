@@ -23,7 +23,7 @@ MINIBATCH_SIZE = 256
 UPDATE_TARGET_EVERY = 1
 
 
-class ExploreAgent (Agent):
+class ExploreAgent(Agent):
 	def __init__(self, epsilon=0.1, discount=0.5, rotations=3):
 		super(ExploreAgent, self).__init__("explore_agent")
 

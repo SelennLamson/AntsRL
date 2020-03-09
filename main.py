@@ -1,6 +1,7 @@
 import pickle
 from tqdm import tqdm
 import datetime
+import time
 import sys
 import tensorflow as tf
 
@@ -10,7 +11,7 @@ from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
 from agents.random_agent import RandomAgent
-from agents.explore_agent import ExploreAgent
+from agents.explore_agent_pytorch import ExploreAgentPytorch
 from environment.rewards.exploration_reward import ExplorationReward
 
 
@@ -55,12 +56,13 @@ def main():
 	api.save_perceptive_field = True
 
 	# Setting up RL Agent
-	agent = ExploreAgent(epsilon=0.1,
+	agent = ExploreAgentPytorch(epsilon=0.1,
 						 discount=0.5,
 						 rotations=3)
 	agent_is_setup = False
 
 	avg_loss = None
+	avg_time = None
 
 	print("Starting simulation...")
 	for episode in range(episodes):
@@ -79,6 +81,8 @@ def main():
 		episode_reward = np.zeros(n_ants)
 
 		for s in range(steps):
+			now = time.time()
+
 			if (episode + 1) % 10 == 0 or episode == 0 or not training:
 				states.append(env.save_state())
 
@@ -106,19 +110,27 @@ def main():
 			# Set obs to the new state
 			obs = new_state
 
-			if (s + 1) % 10 == 0:
+			if (s + 1) % 50 == 0:
 				mean_reward = episode_reward.mean()
 				max_reward = episode_reward.max()
 				min_reward = episode_reward.min()
 				var_reward = episode_reward.std()
 				total_reward = episode_reward.sum()
 
-				print("\rAverage loss: {:.5f} -- ".format(avg_loss),
-					  "Episode reward stats: mean {:.2f} - min {:.2f} - max {:.2f} - std {:.2f} - total {:.2f}".format(mean_reward, min_reward, max_reward, var_reward, total_reward),
+				print("\rAverage loss: {:.5f} --".format(avg_loss),
+					  "Episode reward stats: mean {:.2f} - min {:.2f} - max {:.2f} - std {:.2f} - total {:.2f} --".format(mean_reward, min_reward, max_reward, var_reward, total_reward),
+					  "Avg-time per step: {:.3f}ms".format(avg_time),
 					  end="")
 
 			# Pass new step
 			env.update()
+
+			elapsed = (time.time() - now) * 1000
+			if avg_time is None:
+				avg_time = elapsed
+			else:
+				avg_time = 0.99 * avg_time + 0.01 * elapsed
+
 
 
 	pickle.dump(states, open("saved/" + save_file_name, "wb"))
