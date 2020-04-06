@@ -16,6 +16,7 @@ from environment.rewards.exploration_reward import ExplorationReward
 from agents.explore_agent_pytorch import ExploreAgentPytorch
 from agents.explore_agent import ExploreAgent
 
+
 # -------------------------------------------
 #               Main parameters
 # -------------------------------------------

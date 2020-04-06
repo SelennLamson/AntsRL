@@ -60,7 +60,7 @@ class ReplayMemoryDataset(Dataset):
 		self.actions[begin:end] = torch.from_numpy(actions[:add])
 		self.rewards[begin:end] = torch.from_numpy(rewards[:add])
 		self.new_states[begin:end] = torch.from_numpy(new_states[:add])
-		self.dones[begin:end] = torch.ones(len(states)) * done
+		self.dones[begin:end] = torch.ones(add) * done
 
 	def append(self, states, actions, rewards, new_states, done):
 		add = min(self.max_len - self.head, len(actions))
@@ -148,16 +148,21 @@ class ExploreAgentPytorch(Agent):
 
 			# Non-terminal states get current reward plus discounted future reward
 			max_future_qs = torch.max(future_qs, dim=1).values
-			new_qs = (mem_rewards + self.discount * max_future_qs) * ~mem_done
+			new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
 
 			# Terminal states only gets current reward
-			new_qs += mem_rewards * mem_done
+			# new_qs += mem_rewards * mem_done
 
 			target_qs = self.model(mem_states)
-			target_qs[:, mem_actions.tolist()] = new_qs
+
+			# for i in range(MINIBATCH_SIZE):
+			# 	target_qs[i, mem_actions[i]] = new_qs[i]
+
+			target_qs[np.arange(len(target_qs)), mem_actions.tolist()] = new_qs[np.arange(len(target_qs))]
+
 
 		# loss = self.criterion(self.model(mem_states), target_qs)
-		loss = torch.sum((self.model(mem_states) - target_qs)**2) / MINIBATCH_SIZE
+		loss = self.criterion(self.model(mem_states), target_qs)
 
 		self.optimizer.zero_grad()
 		loss.backward()

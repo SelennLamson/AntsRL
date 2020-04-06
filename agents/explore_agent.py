@@ -23,6 +23,50 @@ MINIBATCH_SIZE = 256
 UPDATE_TARGET_EVERY = 1
 
 
+class ReplayMemoryDataset:
+	def __init__(self, max_len, observation_space):
+		self.max_len = max_len
+		self.observation_space = observation_space
+
+		self.states = np.zeros([max_len] + list(observation_space), dtype=float)
+		self.actions = np.zeros(max_len, dtype=int)
+		self.rewards = np.zeros(max_len, dtype=float)
+		self.new_states = np.zeros([max_len] + list(observation_space), dtype=float)
+		self.dones = np.zeros(max_len, dtype=bool)
+
+		self.head = 0
+		self.fill = 0
+
+	def __len__(self):
+		return self.fill
+
+	def __getitem__(self, idx):
+		return self.states[idx], self.actions[idx], self.rewards[idx], self.new_states[idx], self.dones[idx]
+
+	def random_access(self, n):
+		indices = random.sample(range(len(self)), n)
+		return self[indices]
+
+	def add_safe(self, states, actions, rewards, new_states, done, add):
+		begin = self.head
+		end = begin + add
+		self.states[begin:end] = states[:add]
+		self.actions[begin:end] = actions[:add]
+		self.rewards[begin:end] = rewards[:add]
+		self.new_states[begin:end] = new_states[:add]
+		self.dones[begin:end] = np.ones(add) * done
+
+	def append(self, states, actions, rewards, new_states, done):
+		add = min(self.max_len - self.head, len(actions))
+		self.add_safe(states, actions, rewards, new_states, done, add)
+
+		self.fill = min(self.max_len, self.head + add)
+		self.head = (self.head + add) % self.max_len
+
+		if add != len(actions):
+			self.append(states[add:], actions[add:], rewards[add:], new_states[add:], done)
+
+
 class ExploreAgent(Agent):
 	def __init__(self, epsilon=0.1, discount=0.5, rotations=3):
 		super(ExploreAgent, self).__init__("explore_agent")
@@ -36,12 +80,15 @@ class ExploreAgent(Agent):
 
 		# An array with last n steps for training
 		self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
+		# self.replay_memory = None
 
 		# Used to count when to update target network with main network's weights
 		self.target_update_counter = 0
 
 	def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
 		super(ExploreAgent, self).setup(rl_api, trained_model)
+
+		# self.replay_memory = ReplayMemoryDataset(REPLAY_MEMORY_SIZE, self.observation_space)
 
 		# Main model
 		self.model = self.create_model()
@@ -68,38 +115,60 @@ class ExploreAgent(Agent):
 		if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
 			return 0
 
+
 		minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
-		current_states = np.array([transition[0] for transition in minibatch])
-		current_qs_list = self.model.predict(current_states)
+		# mem_states, mem_actions, mem_rewards, mem_new_states, mem_done = self.replay_memory.random_access(MINIBATCH_SIZE)
+		mem_states = np.array([s[0] for s in minibatch], dtype=float)
+		mem_actions = np.array([s[1] for s in minibatch], dtype=int)
+		mem_rewards = np.array([s[2] for s in minibatch], dtype=float)
+		mem_new_states = np.array([s[3] for s in minibatch], dtype=float)
+		mem_done = np.array([s[4] for s in minibatch], dtype=bool)
 
-		new_current_states = np.array([transition[3] for transition in minibatch])
-		future_qs_list = self.target_model.predict(new_current_states)
+		target_qs = self.model.predict(mem_states)
+		future_qs = self.target_model.predict(mem_new_states)
 
-		X = []
-		y = []
+		max_future_qs = np.max(future_qs, axis=1)
 
-		for index, (current_state, action, reward, new_current_state, done_mb) in enumerate(minibatch):
+		new_q = mem_rewards + self.discount * max_future_qs * mem_done
 
-			# If not a terminal state, get new q from future states, otherwise set it to 0
-			# almost like with Q Learning, but we use just part of equation here
-			if not done_mb:
-				max_future_q = np.max(future_qs_list[index])
-				new_q = reward + self.discount * max_future_q
-			else:
-				new_q = reward
+		target_qs[np.arange(len(target_qs)), mem_actions] = new_q[np.arange(len(target_qs))]
 
-			# Update Q value for given state
-			current_qs = current_qs_list[index]
-			current_qs[action] = new_q
-
-			# And append to our training data
-			X.append(current_state)
-			y.append(current_qs)
-			# Fit on all samples as one batch, log only on terminal state
-
-		history = self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE,
+		history = self.model.fit(mem_states, target_qs, batch_size=MINIBATCH_SIZE,
 								 verbose=0,
 								 shuffle=False)
+
+		# current_states = np.array([transition[0] for transition in minibatch])
+		# current_qs_list = self.model.predict(current_states)
+		#
+		# new_current_states = np.array([transition[3] for transition in minibatch])
+		# future_qs_list = self.target_model.predict(new_current_states)
+		#
+		# X = []
+		# y = []
+		#
+		# for index, (current_state, action, reward, new_current_state, done_mb) in enumerate(minibatch):
+		#
+		# 	# If not a terminal state, get new q from future states, otherwise set it to 0
+		# 	# almost like with Q Learning, but we use just part of equation here
+		# 	if not done_mb:
+		# 		max_future_q = np.max(future_qs_list[index])
+		# 		new_q = reward + self.discount * max_future_q
+		# 	else:
+		# 		new_q = reward
+		#
+		# 	# Update Q value for given state
+		# 	current_qs = current_qs_list[index]
+		# 	current_qs[action] = new_q
+		#
+		# 	# And append to our training data
+		# 	X.append(current_state)
+		# 	y.append(current_qs)
+		# 	# Fit on all samples as one batch, log only on terminal state
+
+		# history = self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE,
+		# 						 verbose=0,
+		# 						 callbacks=[self.tensorboard] if done else None,
+		# 						 shuffle=False)
 
 		# Update target network counter every episode
 		if done:
@@ -113,6 +182,7 @@ class ExploreAgent(Agent):
 		return history.history['loss'][0]
 
 	def update_replay_memory(self, states: ndarray, actions: Tuple[Optional[ndarray], Optional[ndarray], Optional[ndarray]], rewards: ndarray, new_states: ndarray, done: bool):
+		# self.replay_memory.append(states, actions[0] + self.rotations // 2, rewards, new_states, done)
 		for i in range(self.n_ants):
 			self.replay_memory.append((states[i], actions[0][i] + self.rotations // 2, rewards[i], new_states[i], done))
 
