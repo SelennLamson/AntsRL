@@ -13,7 +13,7 @@ from environment.pheromone import Pheromone
 from environment.RL_api import RLApi
 
 
-MODEL_NAME = 'CNN'
+MODEL_NAME = 'Explore_Agent_Pytorch'
 
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
@@ -95,7 +95,7 @@ class ExploreModel(nn.Module):
 
 class ExploreAgentPytorch(Agent):
 	def __init__(self, epsilon=0.1, discount=0.5, rotations=3):
-		super(ExploreAgentPytorch, self).__init__("explore_agent")
+		super(ExploreAgentPytorch, self).__init__("explore_agent_pytorch")
 
 		self.epsilon = epsilon
 		self.discount = discount
@@ -140,6 +140,7 @@ class ExploreAgentPytorch(Agent):
 		if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
 			return 0
 
+		# Get a minibatch from replay memory
 		mem_states, mem_actions, mem_rewards, mem_new_states, mem_done = self.replay_memory.random_access(MINIBATCH_SIZE)
 
 		with torch.no_grad():
@@ -192,10 +193,10 @@ class ExploreAgentPytorch(Agent):
 		return rotation, None, None
 
 	def save_model(self, file_name: str):
-		# self.model.save('./agents/models/' + file_name)
-		pass
+		torch.save(self.model.state_dict(), './agents/models/' + file_name)
+
 
 	def load_model(self, file_name: str):
-		# self.model = load_model('./agents/models/' + file_name)
-		# self.target_model = load_model('./agents/models/' + file_name)
+		self.model.load_state_dict(torch.load('./agents/models/' + file_name))
+		self.target_model.load_state_dict(torch.load('./agents/models/' + file_name))
 		pass

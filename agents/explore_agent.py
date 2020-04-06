@@ -15,7 +15,7 @@ from environment.pheromone import Pheromone
 from environment.RL_api import RLApi
 
 
-MODEL_NAME = 'CNN'
+MODEL_NAME = 'Explore_Agent'
 
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
@@ -39,9 +39,6 @@ class ExploreAgent(Agent):
 
 		# Used to count when to update target network with main network's weights
 		self.target_update_counter = 0
-
-		# Custom tensorboard object
-		self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(MODEL_NAME, int(time.time())))
 
 	def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
 		super(ExploreAgent, self).setup(rl_api, trained_model)
@@ -102,7 +99,6 @@ class ExploreAgent(Agent):
 
 		history = self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE,
 								 verbose=0,
-								 callbacks=[self.tensorboard] if done else None,
 								 shuffle=False)
 
 		# Update target network counter every episode

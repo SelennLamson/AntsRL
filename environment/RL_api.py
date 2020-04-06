@@ -175,6 +175,7 @@ class RLApi (EnvObject):
 		if rotation is not None:
 			self.ants.rotate_ants(rotation * self.max_rot_speed)
 
+		# Moves the ants forward
 		fwd = np.ones(self.ants.n_ants) * self.max_speed * (1 - self.ants.holding * self.carry_speed_reduction)
 		fwd[fwd < 0] *= self.backward_speed_reduction
 		self.ants.forward_ants(fwd)
