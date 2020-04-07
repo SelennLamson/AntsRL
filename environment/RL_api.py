@@ -155,8 +155,10 @@ class RLApi (EnvObject):
 		state[:, 1] = self.ants.holding
 		state[:, 2:] = self.ants.phero_activation > 0
 
+		agent_state = np.zeros((self.ants.n_ants, 2))
+
 		self.reward.observation(abs_coords, perception)
-		return perception, state
+		return perception, agent_state, state
 
 
 	def step(self, rotation: Optional[ndarray], on_off_pheromones: Optional[ndarray]):
@@ -170,7 +172,7 @@ class RLApi (EnvObject):
 			#self.ants.update_mandibles(open_close_mandibles)
 
 		if on_off_pheromones is not None:
-			self.ants.activate_pheromone(on_off_pheromones, 1)
+			self.ants.activate_pheromone(on_off_pheromones)
 
 		if rotation is not None:
 			self.ants.rotate_ants(rotation * self.max_rot_speed)
@@ -180,9 +182,9 @@ class RLApi (EnvObject):
 		fwd[fwd < 0] *= self.backward_speed_reduction
 		self.ants.forward_ants(fwd)
 
-		perception, state = self.observation()
+		perception, agent_state, state = self.observation()
 
 		done = self.environment.max_time == self.environment.timestep
 
 		reward = self.reward.step(done, rotation, open_close_mandibles, on_off_pheromones)
-		return perception, reward, done
+		return perception, agent_state, reward, done

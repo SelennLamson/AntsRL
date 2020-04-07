@@ -18,7 +18,7 @@ MODEL_NAME = 'Collect_Agent'
 
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MINIBATCH_SIZE = 5
+MINIBATCH_SIZE = 264
 UPDATE_TARGET_EVERY = 1
 
 class CollectModel(nn.Module):
@@ -31,6 +31,7 @@ class CollectModel(nn.Module):
         for name, p in self.explore_model.named_parameters():
             if "layer1" in name:
                 p.requires_grad = False
+
 
         input_size = 1
         for dim in observation_space:
@@ -47,7 +48,7 @@ class CollectModel(nn.Module):
 
 
 class CollectAgent(Agent):
-    def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=2):
+    def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=3):
         super(CollectAgent, self).__init__("collect_agent")
 
         self.epsilon = epsilon
@@ -74,7 +75,10 @@ class CollectAgent(Agent):
         self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
         self.explore_agent = ExploreAgentPytorch()
+
+        # Use pre-trained model from explore agent
         self.explore_agent.setup(rl_api, '6_4_17_explore_agent_pytorch.h5')
+        #self.explore_agent.setup(rl_api, None)
 
         # Main model
         self.model = CollectModel(self.observation_space, self.rotations, self.pheromones, self.explore_agent.model)
@@ -93,15 +97,14 @@ class CollectAgent(Agent):
             np.ones((self.n_ants, len([obj for obj in rl_api.perceived_objects if isinstance(obj, Pheromone)]))) * 10)
 
 
-    def train(self, done: bool, step: int) -> float:
+    def train(self, done: bool, step: int) -> Tuple[float, float]:
         # Start training only if certain number of samples is already saved
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
-            return 0
+            return 0, 0
 
         # Get a minibatch from replay memory
-        mem_states, mem_actions, mem_rewards, mem_new_states, mem_done = self.replay_memory.random_access(
+        mem_states, mem_agent_state, mem_actions, mem_rewards, mem_new_states, mem_new_agent_state, mem_done = self.replay_memory.random_access(
             MINIBATCH_SIZE)
-        print("Mem_actions: ", mem_actions)
 
         with torch.no_grad():
             future_qs_rotation, future_qs_pheromones = self.target_model(mem_new_states)
@@ -110,15 +113,13 @@ class CollectAgent(Agent):
             # Update q_value for rotation
             max_future_qs = torch.max(future_qs_rotation, dim=1).values
             new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
-            target_qs_rotation[np.arange(len(target_qs_rotation)), mem_actions[0].tolist()] = new_qs[np.arange(len(target_qs_rotation))]
+            target_qs_rotation[np.arange(len(target_qs_rotation)), mem_actions[:, 0].tolist()] = new_qs[np.arange(len(target_qs_rotation))]
 
             # Update Q_value for pheromones
             max_future_qs = torch.max(future_qs_pheromones, dim=1).values
             new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
-            future_qs_pheromones[np.arange(len(future_qs_pheromones)), mem_actions[1].tolist()] = new_qs[np.arange(len(future_qs_pheromones))]
+            target_qs_pheromones[np.arange(len(target_qs_pheromones)), mem_actions[:, 1].tolist()] = new_qs[np.arange(len(target_qs_pheromones))]
 
-
-        # loss = self.criterion(self.model(mem_states), target_qs)
         loss_rotation = self.criterion(self.model(mem_states)[0], target_qs_rotation)
         loss_pheromones = self.criterion(self.model(mem_states)[1], future_qs_pheromones)
 

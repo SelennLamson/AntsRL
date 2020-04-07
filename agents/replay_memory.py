@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import random
 
@@ -91,10 +92,13 @@ class ReplayMemory(Dataset):
 		"""
 
 		# How many elements can we add at current head position, without overflowing?
-		add = min(self.max_len - self.head, len(actions))
+		add = min(self.max_len - self.head, len(actions[0]))
+
+		# Concatenate and reshape actions to have a ndarray of shape (n_ants, 2)
+		actions = np.concatenate((actions[0], actions[1]), axis=0).reshape((-1, self.action_space[0]))
 
 		# Add those elements
-		self._extend_unsafe(states, agent_states, actions, rewards, new_states, new_agent_states, done)
+		self._extend_unsafe(states, agent_states, actions, rewards, new_states, new_agent_states, done, add)
 
 		# Updating fill (how much space is left in the replay memory, before saturation)
 		self.fill = min(self.max_len, self.head + add)

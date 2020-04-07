@@ -31,14 +31,14 @@ class Agent(ABC):
 		"""
 		pass
 
-	def train(self, done: bool, step: int) -> float:
+	def train(self, done: bool, step: int) -> Tuple[float, float]:
 		"""
 		Trains the network after a step.
 		:param done: Is the episode finished?
 		:param step: Number of the step
 		:return: mean loss over that training session
 		"""
-		return 0
+		return 0, 0
 
 	def update_replay_memory(self,
 							states: ndarray,

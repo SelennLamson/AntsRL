@@ -81,9 +81,14 @@ class Ants (EnvObject):
 	def activate_all_pheromones(self, new_activations):
 		self.phero_activation = new_activations.copy()
 
-	def activate_pheromone(self, phero_index, new_activation):
-		self.phero_activation[:, phero_index] = new_activation
-
+	def activate_pheromone(self, phero_index):
+		for i, phero in enumerate(phero_index):
+			if phero == 0:
+				self.phero_activation[i] = [0, 0]
+			elif phero == 1:
+				self.phero_activation[i] = [1, 0]
+			else:
+				self.phero_activation[i] = [0, 1]
 	def emit_pheromones(self, phero_index):
 		phero = self.pheromones[phero_index]
 		phero.add_pheromones(self.xy.astype(int), self.phero_activation[:, phero_index])

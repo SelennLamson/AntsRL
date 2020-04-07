@@ -22,7 +22,7 @@ from agents.collect_agent import CollectAgent
 #               Main parameters
 # -------------------------------------------
 aggregate_stats_every = 5
-save_model = False
+save_model = True
 training = True
 use_model = None
 only_visualize = False
@@ -34,9 +34,9 @@ save_file_name = "collect_agent.arl"
 
 
 def main():
-    episodes = 10
+    episodes = 30
     steps = 500
-    n_ants = 50
+    n_ants = 10
     states = []
 
     # Setting up environment
@@ -63,10 +63,12 @@ def main():
     # Setting up RL Agent
     agent = CollectAgent(epsilon=0.1,
                          discount=0.5,
-                         rotations=3)
+                         rotations=3,
+                         pheromones=3)
     agent_is_setup = False
 
-    avg_loss = None
+    avg_loss_rot = None
+    avg_loss_phero = None
     avg_time = None
 
     print("Starting simulation...")
@@ -82,7 +84,7 @@ def main():
         # Initializes the agents on the new environment
         agent.initialize(api)
 
-        obs, state = api.observation()
+        obs, agent_state, state = api.observation()
         episode_reward = np.zeros(n_ants)
 
         for s in range(steps):
@@ -95,27 +97,31 @@ def main():
             action = agent.get_action(obs, training)
 
             # Execute the action
-            new_state, reward, done = api.step(*action)
+            new_state, new_agent_state, reward, done = api.step(*action)
 
             # Add the reward to total reward of episode
             episode_reward += reward
 
             # Update replay memory with new action and states
-            agent.update_replay_memory(obs, action, reward, new_state, done)
+            agent.update_replay_memory(obs, agent_state, action, reward, new_state, new_agent_state, done)
 
             # Train the neural network
             if training:
-                loss = agent.train(done, s)
+                loss_rot, loss_phero = agent.train(done, s)
 
-                if avg_loss is None:
-                    avg_loss = loss
+                if avg_loss_rot is None or avg_loss_phero is None:
+                    avg_loss_rot = loss_rot
+                    avg_loss_phero = loss_phero
                 else:
-                    avg_loss = 0.99 * avg_loss + 0.01 * loss
+                    avg_loss_rot = 0.99 * avg_loss_rot + 0.01 * loss_rot
+                    avg_loss_phero = 0.99 * avg_loss_phero + 0.01 * loss_phero
             else:
-                avg_loss = 0
+                avg_loss_rot = 0
+                avg_loss_phero = 0
 
             # Set obs to the new state
             obs = new_state
+            agent_state = new_agent_state
 
             if (s + 1) % 50 == 0:
                 mean_reward = episode_reward.mean()
@@ -124,7 +130,8 @@ def main():
                 var_reward = episode_reward.std()
                 total_reward = episode_reward.sum()
 
-                print("\rAverage loss: {:.5f} --".format(avg_loss),
+                print("\rAverage loss Rot: {:.5f} --".format(avg_loss_rot),
+                      "Average loss Phero: {:.5f} --".format(avg_loss_phero),
                       "Episode reward stats: mean {:.2f} - min {:.2f} - max {:.2f} - std {:.2f} - total {:.2f} --".format(
                           mean_reward, min_reward, max_reward, var_reward, total_reward),
                       "Avg-time per step: {:.3f}ms".format(avg_time),
