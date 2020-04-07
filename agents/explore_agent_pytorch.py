@@ -64,7 +64,7 @@ class ExploreAgentPytorch(Agent):
 	def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
 		super(ExploreAgentPytorch, self).setup(rl_api, trained_model)
 
-		self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, self.observation_space)
+		self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, self.observation_space, self.agent_space, self.action_space)
 		self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
 		# Main model

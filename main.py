@@ -15,18 +15,19 @@ from environment.rewards.exploration_reward import ExplorationReward
 
 from agents.explore_agent_pytorch import ExploreAgentPytorch
 from agents.explore_agent import ExploreAgent
+from agents.collect_agent import CollectAgent
 
 
 # -------------------------------------------
 #               Main parameters
 # -------------------------------------------
 aggregate_stats_every = 5
-save_model = True
-training = False
-#use_model = None
+save_model = False
+training = True
+use_model = None
 only_visualize = False
-use_model = "6_4_14_explore_agent_pytorch.h5"
-save_file_name = "explore_agent_pytorch.arl"
+#use_model = "6_4_14_explore_agent_pytorch.h5"
+save_file_name = "collect_agent.arl"
 
 
 # -------------------------------------------
@@ -60,7 +61,7 @@ def main():
     api.save_perceptive_field = True
 
     # Setting up RL Agent
-    agent = ExploreAgentPytorch(epsilon=0.1,
+    agent = CollectAgent(epsilon=0.1,
                          discount=0.5,
                          rotations=3)
     agent_is_setup = False

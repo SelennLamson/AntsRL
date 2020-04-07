@@ -9,6 +9,8 @@ class Agent(ABC):
 	def __init__(self, name: str):
 		self.name = name
 		self.observation_space = None
+		self.agent_space = None
+		self.action_space = None
 		self.n_ants = 0
 
 	def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
@@ -18,6 +20,8 @@ class Agent(ABC):
 		:param trained_model: an optional file name of a model to load
 		"""
 		self.observation_space = (rl_api.perception_coords.shape[0], rl_api.perception_coords.shape[1], len(rl_api.perceived_objects))
+		self.agent_space = [2]
+		self.action_space = [2]
 		self.n_ants = rl_api.ants.n_ants
 
 	def initialize(self, rl_api: RLApi):
@@ -36,7 +40,14 @@ class Agent(ABC):
 		"""
 		return 0
 
-	def update_replay_memory(self, states: ndarray, actions: ndarray, rewards: ndarray, new_states: ndarray, done: bool):
+	def update_replay_memory(self,
+							states: ndarray,
+							agent_state : ndarray,
+							actions: ndarray,
+							rewards: ndarray,
+							new_states: ndarray,
+							new_agent_state: ndarray,
+							done: bool):
 		"""
 		Registers a new transition into the replay memory.
 		:param states: the initial states of each ant before action

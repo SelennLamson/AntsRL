@@ -159,18 +159,18 @@ class RLApi (EnvObject):
 		return perception, state
 
 
-	def step(self, rotation: Optional[ndarray], open_close_mandibles: Optional[ndarray], on_off_pheromones: Optional[ndarray]):
+	def step(self, rotation: Optional[ndarray], on_off_pheromones: Optional[ndarray]):
 		""" Applies the different ant actions to the ant group. A None action won't change the state of ants.
 		:param rotation: How much the ant should turn right, will be multiplied by max_rot_speed
 		:param open_close_mandibles: Are the mandibles opened or closed
 		:param on_off_pheromones: Are the pheromones activated or not
 		"""
-
-		if open_close_mandibles is not None:
-			self.ants.update_mandibles(open_close_mandibles)
+		open_close_mandibles = None
+		#if open_close_mandibles is not None:
+			#self.ants.update_mandibles(open_close_mandibles)
 
 		if on_off_pheromones is not None:
-			self.ants.activate_all_pheromones(on_off_pheromones)
+			self.ants.activate_pheromone(on_off_pheromones, 1)
 
 		if rotation is not None:
 			self.ants.rotate_ants(rotation * self.max_rot_speed)

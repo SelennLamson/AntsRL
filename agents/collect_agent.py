@@ -12,6 +12,7 @@ from agents.agent import Agent
 from environment.pheromone import Pheromone
 from environment.RL_api import RLApi
 from agents.explore_agent_pytorch import ExploreAgentPytorch
+from agents.replay_memory import ReplayMemory
 
 MODEL_NAME = 'Collect_Agent'
 
@@ -19,60 +20,6 @@ REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 MINIBATCH_SIZE = 5
 UPDATE_TARGET_EVERY = 1
-
-
-class ReplayMemoryDataset(Dataset):
-    def __init__(self, max_len, observation_space):
-        self.max_len = max_len
-        self.observation_space = observation_space
-
-        self.states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
-        self.actions = torch.zeros(max_len, dtype=int)
-        self.rewards = torch.zeros(max_len, dtype=torch.float32)
-        self.new_states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
-        self.dones = torch.zeros(max_len, dtype=bool)
-
-        self.states.requires_grad = False
-        self.actions.requires_grad = False
-        self.rewards.requires_grad = False
-        self.new_states.requires_grad = False
-        self.dones.requires_grad = False
-
-        self.head = 0
-        self.fill = 0
-
-    def __len__(self):
-        return self.fill
-
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-        return self.states[idx], self.actions[idx], self.rewards[idx], self.new_states[idx], self.dones[idx]
-
-    def random_access(self, n):
-        indices = random.sample(range(len(self)), n)
-        return self[indices]
-
-    def add_safe(self, states, actions, rewards, new_states, done, add):
-        begin = self.head
-        end = begin + add
-        self.states[begin:end] = torch.from_numpy(states[:add])
-        self.actions[begin:end] = torch.from_numpy(actions[:add])
-        self.rewards[begin:end] = torch.from_numpy(rewards[:add])
-        self.new_states[begin:end] = torch.from_numpy(new_states[:add])
-        self.dones[begin:end] = torch.ones(add) * done
-
-    def append(self, states, actions, rewards, new_states, done):
-        add = min(self.max_len - self.head, len(actions))
-        self.add_safe(states, actions, rewards, new_states, done, add)
-
-        self.fill = min(self.max_len, self.head + add)
-        self.head = (self.head + add) % self.max_len
-
-        if add != len(actions):
-            self.append(states[add:], actions[add:], rewards[add:], new_states[add:], done)
-
-
 
 class CollectModel(nn.Module):
     def __init__(self, observation_space, rotations, pheromones, explore_model):
@@ -101,7 +48,7 @@ class CollectModel(nn.Module):
 
 class CollectAgent(Agent):
     def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=2):
-        super(CollectAgent, self).__init__("explore_agent_pytorch")
+        super(CollectAgent, self).__init__("collect_agent")
 
         self.epsilon = epsilon
         self.discount = discount
@@ -123,10 +70,10 @@ class CollectAgent(Agent):
     def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
         super(CollectAgent, self).setup(rl_api, trained_model)
 
-        self.replay_memory = ReplayMemoryDataset(REPLAY_MEMORY_SIZE, self.observation_space)
+        self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, self.observation_space, self.agent_space, self.action_space)
         self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
-        self.explore_agent = ExploreAgentPytorch(pretrained=True)
+        self.explore_agent = ExploreAgentPytorch()
         self.explore_agent.setup(rl_api, '6_4_17_explore_agent_pytorch.h5')
 
         # Main model
@@ -160,8 +107,6 @@ class CollectAgent(Agent):
             future_qs_rotation, future_qs_pheromones = self.target_model(mem_new_states)
             target_qs_rotation, target_qs_pheromones = self.model(mem_states)
 
-
-
             # Update q_value for rotation
             max_future_qs = torch.max(future_qs_rotation, dim=1).values
             new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
@@ -171,7 +116,6 @@ class CollectAgent(Agent):
             max_future_qs = torch.max(future_qs_pheromones, dim=1).values
             new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
             future_qs_pheromones[np.arange(len(future_qs_pheromones)), mem_actions[1].tolist()] = new_qs[np.arange(len(future_qs_pheromones))]
-
 
 
         # loss = self.criterion(self.model(mem_states), target_qs)
@@ -195,10 +139,16 @@ class CollectAgent(Agent):
 
         return loss_rotation.item(), loss_pheromones.item()
 
-    def update_replay_memory(self, states: ndarray,
+    def update_replay_memory(self, states: ndarray, agent_state: ndarray,
                              actions: Tuple[Optional[ndarray], Optional[ndarray]], rewards: ndarray,
-                             new_states: ndarray, done: bool):
-        self.replay_memory.append(states, (actions[0] + self.rotations // 2, actions[1]), rewards, new_states, done)
+                             new_states: ndarray, new_agent_states: ndarray, done: bool):
+        self.replay_memory.extend(states,
+                                  agent_state,
+                                  (actions[0] + self.rotations // 2, actions[1]),
+                                  rewards,
+                                  new_states,
+                                  new_agent_states,
+                                  done)
 
     def get_action(self, state: ndarray, training: bool) -> Tuple[
         Optional[ndarray], Optional[ndarray]]:
@@ -217,7 +167,7 @@ class CollectAgent(Agent):
             # Random pheromones
             pheromone = np.random.randint(low=0, high=self.pheromones, size=self.n_ants)
 
-        return rotation, None, pheromone
+        return rotation, pheromone
 
     def save_model(self, file_name: str):
         torch.save(self.model.state_dict(), './agents/models/' + file_name)

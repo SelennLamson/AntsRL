@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
+import random
 
 class ReplayMemory(Dataset):
 	"""Rolling replay memory: arrays are initialized at full length but elements are inserted at current head cursor.
@@ -14,11 +15,11 @@ class ReplayMemory(Dataset):
 
 		# Initializing zero-arrays of full length
 		self.states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
-		self.agent_states = torch.zeros([maxlen] + list(agent_space), dtype=torch.float32)
-		self.actions = torch.zeros(max_len + list(action_space), dtype=int)
+		self.agent_states = torch.zeros([max_len] + list(agent_space), dtype=torch.float32)
+		self.actions = torch.zeros([max_len] + list(action_space), dtype=int)
 		self.rewards = torch.zeros(max_len, dtype=torch.float32)
 		self.new_states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
-		self.new_agent_states = torch.zeros([maxlen] + list(agent_space), dtype=torch.float32)
+		self.new_agent_states = torch.zeros([max_len] + list(agent_space), dtype=torch.float32)
 		self.dones = torch.zeros(max_len, dtype=bool)
 
 		# None of them require gradient computation, save some resources:
