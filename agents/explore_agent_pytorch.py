@@ -11,6 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 from agents.agent import Agent
 from environment.pheromone import Pheromone
 from environment.RL_api import RLApi
+from agents.replay_memory import ReplayMemory
 
 
 MODEL_NAME = 'Explore_Agent_Pytorch'
@@ -19,60 +20,6 @@ REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 MINIBATCH_SIZE = 256
 UPDATE_TARGET_EVERY = 1
-
-
-class ReplayMemoryDataset(Dataset):
-	def __init__(self, max_len, observation_space):
-		self.max_len = max_len
-		self.observation_space = observation_space
-
-		self.states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
-		self.actions = torch.zeros(max_len, dtype=int)
-		self.rewards = torch.zeros(max_len, dtype=torch.float32)
-		self.new_states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
-		self.dones = torch.zeros(max_len, dtype=bool)
-
-		self.states.requires_grad = False
-		self.actions.requires_grad = False
-		self.rewards.requires_grad = False
-		self.new_states.requires_grad = False
-		self.dones.requires_grad = False
-
-		self.head = 0
-		self.fill = 0
-
-	def __len__(self):
-		return self.fill
-
-	def __getitem__(self, idx):
-		if torch.is_tensor(idx):
-			idx = idx.tolist()
-		return self.states[idx], self.actions[idx], self.rewards[idx], self.new_states[idx], self.dones[idx]
-
-	def random_access(self, n):
-		indices = random.sample(range(len(self)), n)
-		return self[indices]
-
-	def add_safe(self, states, actions, rewards, new_states, done, add):
-		begin = self.head
-		end = begin + add
-		self.states[begin:end] = torch.from_numpy(states[:add])
-		self.actions[begin:end] = torch.from_numpy(actions[:add])
-		self.rewards[begin:end] = torch.from_numpy(rewards[:add])
-		self.new_states[begin:end] = torch.from_numpy(new_states[:add])
-		self.dones[begin:end] = torch.ones(add) * done
-
-	def append(self, states, actions, rewards, new_states, done):
-		add = min(self.max_len - self.head, len(actions))
-		self.add_safe(states, actions, rewards, new_states, done, add)
-
-		self.fill = min(self.max_len, self.head + add)
-		self.head = (self.head + add) % self.max_len
-
-		if add != len(actions):
-			self.append(states[add:], actions[add:], rewards[add:], new_states[add:], done)
-
-
 
 class ExploreModel(nn.Module):
 	def __init__(self, observation_space, rotations):
@@ -117,7 +64,7 @@ class ExploreAgentPytorch(Agent):
 	def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
 		super(ExploreAgentPytorch, self).setup(rl_api, trained_model)
 
-		self.replay_memory = ReplayMemoryDataset(REPLAY_MEMORY_SIZE, self.observation_space)
+		self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, self.observation_space)
 		self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
 		# Main model
