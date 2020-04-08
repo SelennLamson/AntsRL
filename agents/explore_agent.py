@@ -68,7 +68,7 @@ class ReplayMemoryDataset:
 
 
 class ExploreAgent(Agent):
-	def __init__(self, epsilon=0.1, discount=0.5, rotations=3):
+	def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=3):
 		super(ExploreAgent, self).__init__("explore_agent")
 
 		self.epsilon = epsilon
@@ -137,39 +137,6 @@ class ExploreAgent(Agent):
 								 verbose=0,
 								 shuffle=False)
 
-		# current_states = np.array([transition[0] for transition in minibatch])
-		# current_qs_list = self.model.predict(current_states)
-		#
-		# new_current_states = np.array([transition[3] for transition in minibatch])
-		# future_qs_list = self.target_model.predict(new_current_states)
-		#
-		# X = []
-		# y = []
-		#
-		# for index, (current_state, action, reward, new_current_state, done_mb) in enumerate(minibatch):
-		#
-		# 	# If not a terminal state, get new q from future states, otherwise set it to 0
-		# 	# almost like with Q Learning, but we use just part of equation here
-		# 	if not done_mb:
-		# 		max_future_q = np.max(future_qs_list[index])
-		# 		new_q = reward + self.discount * max_future_q
-		# 	else:
-		# 		new_q = reward
-		#
-		# 	# Update Q value for given state
-		# 	current_qs = current_qs_list[index]
-		# 	current_qs[action] = new_q
-		#
-		# 	# And append to our training data
-		# 	X.append(current_state)
-		# 	y.append(current_qs)
-		# 	# Fit on all samples as one batch, log only on terminal state
-
-		# history = self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE,
-		# 						 verbose=0,
-		# 						 callbacks=[self.tensorboard] if done else None,
-		# 						 shuffle=False)
-
 		# Update target network counter every episode
 		if done:
 			self.target_update_counter += 1
@@ -181,12 +148,14 @@ class ExploreAgent(Agent):
 
 		return history.history['loss'][0]
 
-	def update_replay_memory(self, states: ndarray, actions: Tuple[Optional[ndarray], Optional[ndarray], Optional[ndarray]], rewards: ndarray, new_states: ndarray, done: bool):
+	def update_replay_memory(self, states: ndarray, agent_state: ndarray,
+							 actions: Tuple[Optional[ndarray], Optional[ndarray]], rewards: ndarray,
+							 new_states: ndarray, new_agent_states: ndarray, done: bool):
 		# self.replay_memory.append(states, actions[0] + self.rotations // 2, rewards, new_states, done)
 		for i in range(self.n_ants):
 			self.replay_memory.append((states[i], actions[0][i] + self.rotations // 2, rewards[i], new_states[i], done))
 
-	def get_action(self, state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray], Optional[ndarray]]:
+	def get_action(self, state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray]]:
 		if random.random() > self.epsilon or not training:
 			# Ask network for next action
 			predict = self.target_model.predict(state)
@@ -195,7 +164,7 @@ class ExploreAgent(Agent):
 			# Random turn
 			rotation = np.random.randint(low=0, high=self.rotations, size=self.n_ants) - self.rotations // 2
 
-		return rotation, None, None
+		return rotation, None
 
 	def save_model(self, file_name: str):
 		self.model.save('./agents/models/' + file_name)

@@ -22,7 +22,7 @@ from agents.collect_agent import CollectAgent
 #               Main parameters
 # -------------------------------------------
 aggregate_stats_every = 5
-save_model = True
+save_model = False
 training = True
 use_model = None
 only_visualize = False
@@ -61,14 +61,13 @@ def main():
     api.save_perceptive_field = True
 
     # Setting up RL Agent
-    agent = CollectAgent(epsilon=0.1,
+    agent = ExploreAgent(epsilon=0.1,
                          discount=0.5,
                          rotations=3,
                          pheromones=3)
     agent_is_setup = False
 
-    avg_loss_rot = None
-    avg_loss_phero = None
+    avg_loss = None
     avg_time = None
 
     print("Starting simulation...")
@@ -107,17 +106,14 @@ def main():
 
             # Train the neural network
             if training:
-                loss_rot, loss_phero = agent.train(done, s)
+                loss = agent.train(done, s)
 
-                if avg_loss_rot is None or avg_loss_phero is None:
-                    avg_loss_rot = loss_rot
-                    avg_loss_phero = loss_phero
+                if avg_loss is None:
+                    avg_loss = loss
                 else:
-                    avg_loss_rot = 0.99 * avg_loss_rot + 0.01 * loss_rot
-                    avg_loss_phero = 0.99 * avg_loss_phero + 0.01 * loss_phero
+                    avg_loss = 0.99 * avg_loss + 0.01 * loss
             else:
-                avg_loss_rot = 0
-                avg_loss_phero = 0
+                avg_loss = 0
 
             # Set obs to the new state
             obs = new_state
@@ -130,8 +126,7 @@ def main():
                 var_reward = episode_reward.std()
                 total_reward = episode_reward.sum()
 
-                print("\rAverage loss Rot: {:.5f} --".format(avg_loss_rot),
-                      "Average loss Phero: {:.5f} --".format(avg_loss_phero),
+                print("\rAverage loss : {:.5f} --".format(avg_loss),
                       "Episode reward stats: mean {:.2f} - min {:.2f} - max {:.2f} - std {:.2f} - total {:.2f} --".format(
                           mean_reward, min_reward, max_reward, var_reward, total_reward),
                       "Avg-time per step: {:.3f}ms".format(avg_time),

@@ -41,7 +41,7 @@ class ExploreModel(nn.Module):
 
 
 class ExploreAgentPytorch(Agent):
-	def __init__(self, epsilon=0.1, discount=0.5, rotations=3):
+	def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=3):
 		super(ExploreAgentPytorch, self).__init__("explore_agent_pytorch")
 
 		self.epsilon = epsilon
@@ -88,7 +88,8 @@ class ExploreAgentPytorch(Agent):
 			return 0
 
 		# Get a minibatch from replay memory
-		mem_states, mem_actions, mem_rewards, mem_new_states, mem_done = self.replay_memory.random_access(MINIBATCH_SIZE)
+		mem_states, mem_agent_state, mem_actions, mem_rewards, mem_new_states, mem_new_agent_state, mem_done = self.replay_memory.random_access(
+			MINIBATCH_SIZE)
 
 		with torch.no_grad():
 			future_qs = self.target_model(mem_new_states)
@@ -105,10 +106,9 @@ class ExploreAgentPytorch(Agent):
 			# for i in range(MINIBATCH_SIZE):
 			# 	target_qs[i, mem_actions[i]] = new_qs[i]
 
-			target_qs[np.arange(len(target_qs)), mem_actions.tolist()] = new_qs[np.arange(len(target_qs))]
+			target_qs[np.arange(len(target_qs)), mem_actions[:, 0].tolist()] = new_qs[np.arange(len(target_qs))]
 
 
-		# loss = self.criterion(self.model(mem_states), target_qs)
 		loss = self.criterion(self.model(mem_states), target_qs)
 
 		self.optimizer.zero_grad()
@@ -127,12 +127,18 @@ class ExploreAgentPytorch(Agent):
 
 		return loss.item()
 
-	def update_replay_memory(self, states: ndarray, actions: Tuple[Optional[ndarray], Optional[ndarray], Optional[ndarray]], rewards: ndarray, new_states: ndarray, done: bool):
-		self.replay_memory.append(states, actions[0] + self.rotations // 2, rewards, new_states, done)
-		# for i in range(self.n_ants):
-		# 	self.replay_memory.append((states[i], actions[0][i] + self.rotations // 2, rewards[i], new_states[i], done))
+	def update_replay_memory(self, states: ndarray, agent_state: ndarray,
+							 actions: Tuple[Optional[ndarray], Optional[ndarray]], rewards: ndarray,
+							 new_states: ndarray, new_agent_states: ndarray, done: bool):
+		self.replay_memory.extend(states,
+								  agent_state,
+								  (actions[0] + self.rotations // 2, actions[1]),
+								  rewards,
+								  new_states,
+								  new_agent_states,
+								  done)
 
-	def get_action(self, state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray], Optional[ndarray]]:
+	def get_action(self, state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray]]:
 		if random.random() > self.epsilon or not training:
 			# Ask network for next action
 			with torch.no_grad():
@@ -142,7 +148,7 @@ class ExploreAgentPytorch(Agent):
 			# Random turn
 			rotation = np.random.randint(low=0, high=self.rotations, size=self.n_ants) - self.rotations // 2
 
-		return rotation, None, None
+		return rotation, None
 
 	def save_model(self, file_name: str):
 		torch.save(self.model.state_dict(), './agents/models/' + file_name)

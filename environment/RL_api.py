@@ -117,6 +117,7 @@ class RLApi (EnvObject):
 		abs_coords[:, :, :, 0] = np.mod(abs_coords[:, :, :, 0], self.environment.w)
 		abs_coords[:, :, :, 1] = np.mod(abs_coords[:, :, :, 1], self.environment.h)
 
+
 		perception = np.zeros(list(abs_coords.shape[:-1]) + [len(self.perceived_objects)])
 		for i, obj in enumerate(self.perceived_objects):
 			if isinstance(obj, Pheromone):

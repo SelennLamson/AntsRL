@@ -97,10 +97,10 @@ class CollectAgent(Agent):
             np.ones((self.n_ants, len([obj for obj in rl_api.perceived_objects if isinstance(obj, Pheromone)]))) * 10)
 
 
-    def train(self, done: bool, step: int) -> Tuple[float, float]:
+    def train(self, done: bool, step: int) -> float:
         # Start training only if certain number of samples is already saved
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
-            return 0, 0
+            return 0
 
         # Get a minibatch from replay memory
         mem_states, mem_agent_state, mem_actions, mem_rewards, mem_new_states, mem_new_agent_state, mem_done = self.replay_memory.random_access(
@@ -121,11 +121,12 @@ class CollectAgent(Agent):
             target_qs_pheromones[np.arange(len(target_qs_pheromones)), mem_actions[:, 1].tolist()] = new_qs[np.arange(len(target_qs_pheromones))]
 
         loss_rotation = self.criterion(self.model(mem_states)[0], target_qs_rotation)
-        loss_pheromones = self.criterion(self.model(mem_states)[1], future_qs_pheromones)
+        loss_pheromones = self.criterion(self.model(mem_states)[1], target_qs_pheromones)
+
+        loss = loss_rotation + loss_pheromones
 
         self.optimizer.zero_grad()
-        loss_rotation.backward()
-        loss_pheromones.backward()
+        loss.backward()
         self.optimizer.step()
 
         # Update target network counter every episode
@@ -138,7 +139,7 @@ class CollectAgent(Agent):
             self.target_model.eval()
             self.target_update_counter = 0
 
-        return loss_rotation.item(), loss_pheromones.item()
+        return loss.item()
 
     def update_replay_memory(self, states: ndarray, agent_state: ndarray,
                              actions: Tuple[Optional[ndarray], Optional[ndarray]], rewards: ndarray,
