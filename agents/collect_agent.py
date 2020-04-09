@@ -22,7 +22,7 @@ MINIBATCH_SIZE = 264
 UPDATE_TARGET_EVERY = 1
 
 class CollectModel(nn.Module):
-    def __init__(self, observation_space, rotations, pheromones, explore_model):
+    def __init__(self, observation_space, agent_space, rotations, pheromones, explore_model):
         super(CollectModel, self).__init__()
 
         self.explore_model = explore_model
@@ -36,11 +36,16 @@ class CollectModel(nn.Module):
         for dim in observation_space:
             input_size *= dim
 
+        agent_input_size = 1
+        for dim in agent_space:
+            agent_input_size *= dim
+
         self.layer3 = nn.Linear(32, pheromones)
         self.input_size = input_size
+        self.agent_input_size = agent_input_size
 
-    def forward(self, state):
-        out = self.explore_model.layer1(state.view(-1, self.input_size))
+    def forward(self, state, agent_state):
+        out = self.explore_model.layer1(torch.cat([state.view(-1, self.input_size), agent_state.view(-1, self.agent_input_size)], dim=1))
         rotations = self.explore_model.layer2(out)
         pheromones = self.layer3(out)
         return rotations, pheromones
@@ -73,15 +78,16 @@ class CollectAgent(Agent):
         self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, self.observation_space, self.agent_space, self.action_space)
         self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
-        self.explore_agent = ExploreAgentPytorch()
+        self.explore_agent = ExploreAgentPytorch(epsilon=0.1, discount=0.5, rotations=3, pheromones=3)
 
         # Use pre-trained model from explore agent
-        self.explore_agent.setup(rl_api, '6_4_17_explore_agent_pytorch.h5')
+        # self.explore_agent.setup(rl_api, '6_4_17_explore_agent_pytorch.h5')
+        self.explore_agent.setup(rl_api)
         #self.explore_agent.setup(rl_api, None)
 
         # Main model
-        self.model = CollectModel(self.observation_space, self.rotations, self.pheromones, self.explore_agent.model)
-        self.target_model = CollectModel(self.observation_space, self.rotations, self.pheromones, self.explore_agent.model)
+        self.model = CollectModel(self.observation_space, self.agent_space, self.rotations, self.pheromones, self.explore_agent.model)
+        self.target_model = CollectModel(self.observation_space, self.agent_space, self.rotations, self.pheromones, self.explore_agent.model)
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
 
@@ -106,8 +112,8 @@ class CollectAgent(Agent):
             MINIBATCH_SIZE)
 
         with torch.no_grad():
-            future_qs_rotation, future_qs_pheromones = self.target_model(mem_new_states)
-            target_qs_rotation, target_qs_pheromones = self.model(mem_states)
+            future_qs_rotation, future_qs_pheromones = self.target_model(mem_new_states, mem_new_agent_state)
+            target_qs_rotation, target_qs_pheromones = self.model(mem_states, mem_agent_state)
 
             # Update q_value for rotation
             max_future_qs = torch.max(future_qs_rotation, dim=1).values
@@ -119,8 +125,9 @@ class CollectAgent(Agent):
             new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
             target_qs_pheromones[np.arange(len(target_qs_pheromones)), mem_actions[:, 1].tolist()] = new_qs[np.arange(len(target_qs_pheromones))]
 
-        loss_rotation = self.criterion(self.model(mem_states)[0], target_qs_rotation)
-        loss_pheromones = self.criterion(self.model(mem_states)[1], target_qs_pheromones)
+        output = self.model(mem_states, mem_agent_state)
+        loss_rotation = self.criterion(output[0], target_qs_rotation)
+        loss_pheromones = self.criterion(output[1], target_qs_pheromones)
 
         loss = loss_rotation + loss_pheromones
 
@@ -151,13 +158,12 @@ class CollectAgent(Agent):
                                   new_agent_states,
                                   done)
 
-    def get_action(self, state: ndarray, training: bool) -> Tuple[
-        Optional[ndarray], Optional[ndarray]]:
+    def get_action(self, state: ndarray, agent_state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray]]:
         if random.random() > self.epsilon or not training:
             # Ask network for next action
             with torch.no_grad():
                 #predict = torch.max(self.target_model(torch.Tensor(state)), dim=1).indices.numpy()
-                qs_rotation, qs_pheromones = self.target_model(torch.Tensor(state))
+                qs_rotation, qs_pheromones = self.target_model(torch.Tensor(state), torch.Tensor(agent_state))
                 action_rot = torch.max(qs_rotation, dim=1).indices.numpy()
                 action_phero = torch.max(qs_pheromones, dim=1).indices.numpy()
             rotation = action_rot - self.rotations // 2
