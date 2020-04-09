@@ -79,7 +79,7 @@ class EnvironmentGenerator:
 		perceived_objects.insert(0, ants)
 
 		for p in range(self.n_pheromones):
-			phero = Pheromone(env, color=PHERO_COLORS[p % len(PHERO_COLORS)], max_val=20)
+			phero = Pheromone(env, color=PHERO_COLORS[p % len(PHERO_COLORS)], max_val=255)
 			ants.register_pheromone(phero)
 			perceived_objects.insert(p + 1, phero)
 

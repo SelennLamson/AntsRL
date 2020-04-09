@@ -193,6 +193,7 @@ class Visualizer:
 
                     # Display one ant at each location, with holding food icon if it's the case
                     for i, (x, y, t) in enumerate(xyt):
+                        # img = self.ant if not obj.mandibles[i] else self.holding_ant
                         img = self.ant if obj.holding[i] == 0 else self.holding_ant
                         rotated = pygame.transform.rotate(img, t / np.pi * 180 - 90)
                         self.ants_layer.blit(rotated, (x - rotated.get_width()/2, y - rotated.get_height()/2))

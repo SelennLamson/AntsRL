@@ -11,47 +11,58 @@ from torch.utils.data import Dataset, DataLoader
 from agents.agent import Agent
 from environment.pheromone import Pheromone
 from environment.RL_api import RLApi
+from agents.explore_agent_pytorch import ExploreAgentPytorch
 from agents.replay_memory import ReplayMemory
 
-
-MODEL_NAME = 'Explore_Agent_Pytorch'
+MODEL_NAME = 'Collect_Agent'
 
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MINIBATCH_SIZE = 256
+MINIBATCH_SIZE = 264
 UPDATE_TARGET_EVERY = 1
 
-class ExploreModel(nn.Module):
-    def __init__(self, observation_space, agent_space, rotations):
-        super(ExploreModel, self).__init__()
+class CollectModelRework(nn.Module):
+    def __init__(self, observation_space, agent_space, rotations, pheromones):
+        super(CollectModelRework, self).__init__()
 
-        input_size = 1
+        self.input_size = 1
         for dim in observation_space:
-            input_size *= dim
+            self.input_size *= dim
 
-        agent_input_size = 1
+        self.agent_input_size = 1
         for dim in agent_space:
-            agent_input_size *= dim
+            self.agent_input_size *= dim
 
-        self.layer1 = nn.Linear(input_size + agent_input_size, 32)
-        self.layer2 = nn.Linear(32, rotations)
+        self.layer1 = nn.Linear(self.input_size + self.agent_input_size, 32)
+        self.layer2 = nn.Linear(32, self.input_size + self.agent_input_size)
 
-        self.input_size = input_size
-        self.agent_input_size = agent_input_size
+        self.rotation_layer1 = nn.Linear(self.input_size + self.agent_input_size, 32)
+        self.rotation_layer2 = nn.Linear(32, rotations)
+
+        self.pheromone_layer1 = nn.Linear(self.input_size + self.agent_input_size, 32)
+        self.pheromone_layer2 = nn.Linear(32, pheromones)
 
     def forward(self, state, agent_state):
-        out = self.layer1(torch.cat([state.view(-1, self.input_size), agent_state.view(-1, self.agent_input_size)]))
-        out = self.layer2(out)
-        return out
+        general = self.layer1(torch.cat([state.view(-1, self.input_size), agent_state.view(-1, self.agent_input_size)], dim=1))
+        general = self.layer2(general)
+
+        rotation = self.rotation_layer1(general)
+        rotation = self.rotation_layer2(rotation)
+
+        pheromone = self.pheromone_layer1(general)
+        pheromone = self.pheromone_layer2(pheromone)
+
+        return rotation, pheromone
 
 
-class ExploreAgentPytorch(Agent):
+class CollectAgentRework(Agent):
     def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=3):
-        super(ExploreAgentPytorch, self).__init__("explore_agent_pytorch")
+        super(CollectAgentRework, self).__init__("collect_agent_rework")
 
         self.epsilon = epsilon
         self.discount = discount
         self.rotations = rotations
+        self.pheromones = pheromones
 
         self.model = None
         self.target_model = None
@@ -59,7 +70,6 @@ class ExploreAgentPytorch(Agent):
         self.optimizer = None
 
         # An array with last n steps for training
-        # self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
         self.replay_memory = None
 
         # Used to count when to update target network with main network's weights
@@ -67,14 +77,14 @@ class ExploreAgentPytorch(Agent):
         self.state = None
 
     def setup(self, rl_api: RLApi, trained_model: Optional[str] = None):
-        super(ExploreAgentPytorch, self).setup(rl_api, trained_model)
+        super(CollectAgentRework, self).setup(rl_api, trained_model)
 
         self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, self.observation_space, self.agent_space, self.action_space)
         self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
         # Main model
-        self.model = ExploreModel(self.observation_space, self.agent_space, self.rotations)
-        self.target_model = ExploreModel(self.observation_space, self.agent_space, self.rotations)
+        self.model = CollectModelRework(self.observation_space, self.agent_space, self.rotations, self.pheromones)
+        self.target_model = CollectModelRework(self.observation_space, self.agent_space, self.rotations, self.pheromones)
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
 
@@ -85,7 +95,9 @@ class ExploreAgentPytorch(Agent):
         self.target_model.eval()
 
     def initialize(self, rl_api: RLApi):
-        rl_api.ants.activate_all_pheromones(np.ones((self.n_ants, len([obj for obj in rl_api.perceived_objects if isinstance(obj, Pheromone)]))) * 10)
+        rl_api.ants.activate_all_pheromones(
+            np.ones((self.n_ants, len([obj for obj in rl_api.perceived_objects if isinstance(obj, Pheromone)]))) * 10)
+
 
     def train(self, done: bool, step: int) -> float:
         # Start training only if certain number of samples is already saved
@@ -97,24 +109,23 @@ class ExploreAgentPytorch(Agent):
             MINIBATCH_SIZE)
 
         with torch.no_grad():
-            future_qs = self.target_model(mem_new_states)
+            future_qs_rotation, future_qs_pheromones = self.target_model(mem_new_states, mem_new_agent_state)
+            target_qs_rotation, target_qs_pheromones = self.model(mem_states, mem_agent_state)
 
-            # Non-terminal states get current reward plus discounted future reward
-            max_future_qs = torch.max(future_qs, dim=1).values
+            # Update q_value for rotation
+            max_future_qs = torch.max(future_qs_rotation, dim=1).values
             new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
+            target_qs_rotation[np.arange(len(target_qs_rotation)), mem_actions[:, 0].tolist()] = new_qs[np.arange(len(target_qs_rotation))]
 
-            # Terminal states only gets current reward
-            # new_qs += mem_rewards * mem_done
+            # Update Q_value for pheromones
+            max_future_qs = torch.max(future_qs_pheromones, dim=1).values
+            new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
+            target_qs_pheromones[np.arange(len(target_qs_pheromones)), mem_actions[:, 1].tolist()] = new_qs[np.arange(len(target_qs_pheromones))]
 
-            target_qs = self.model(mem_states)
-
-            # for i in range(MINIBATCH_SIZE):
-            # 	target_qs[i, mem_actions[i]] = new_qs[i]
-
-            target_qs[np.arange(len(target_qs)), mem_actions[:, 0].tolist()] = new_qs[np.arange(len(target_qs))]
-
-
-        loss = self.criterion(self.model(mem_states), target_qs)
+        output = self.model(mem_states, mem_agent_state)
+        loss_rotation = self.criterion(output[0], target_qs_rotation)
+        loss_pheromones = self.criterion(output[1], target_qs_pheromones)
+        loss = loss_rotation + loss_pheromones
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -143,23 +154,27 @@ class ExploreAgentPytorch(Agent):
                                   new_agent_states,
                                   done)
 
-    def get_action(self, state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray]]:
+    def get_action(self, state: ndarray, agent_state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray]]:
         if random.random() > self.epsilon or not training:
             # Ask network for next action
             with torch.no_grad():
-                predict = torch.max(self.target_model(torch.Tensor(state)), dim=1).indices.numpy()
-            rotation = predict - self.rotations // 2
+                #predict = torch.max(self.target_model(torch.Tensor(state)), dim=1).indices.numpy()
+                qs_rotation, qs_pheromones = self.target_model(torch.Tensor(state), torch.Tensor(agent_state))
+                action_rot = torch.max(qs_rotation, dim=1).indices.numpy()
+                action_phero = torch.max(qs_pheromones, dim=1).indices.numpy()
+            rotation = action_rot - self.rotations // 2
+            pheromone = action_phero
         else:
             # Random turn
             rotation = np.random.randint(low=0, high=self.rotations, size=self.n_ants) - self.rotations // 2
+            # Random pheromones
+            pheromone = np.random.randint(low=0, high=self.pheromones, size=self.n_ants)
 
-        return rotation, None
+        return rotation, pheromone
 
     def save_model(self, file_name: str):
         torch.save(self.model.state_dict(), './agents/models/' + file_name)
 
-
     def load_model(self, file_name: str):
         self.model.load_state_dict(torch.load('./agents/models/' + file_name))
         self.target_model.load_state_dict(torch.load('./agents/models/' + file_name))
-        pass

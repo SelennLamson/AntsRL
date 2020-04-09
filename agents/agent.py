@@ -58,10 +58,11 @@ class Agent(ABC):
 		"""
 		pass
 
-	def get_action(self, state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray], Optional[ndarray]]:
+	def get_action(self, state: ndarray, agent_state: ndarray, training: bool) -> Tuple[Optional[ndarray], Optional[ndarray], Optional[ndarray]]:
 		"""
 		Computes the action to perform in a certain observed state. The returned arrays can be None if the model works with default action.
 		:param state: the observed state of each ant
+		:param agent_state: the agent state, internal to each ant
 		:param training: are we in a training phase?
 		:return: the actions of each ant, which is a tuple containing: the rotation action, the mandibles state and the pheromones activation
 		"""

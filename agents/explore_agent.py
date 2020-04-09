@@ -22,51 +22,6 @@ MIN_REPLAY_MEMORY_SIZE = 1000
 MINIBATCH_SIZE = 256
 UPDATE_TARGET_EVERY = 1
 
-
-class ReplayMemoryDataset:
-	def __init__(self, max_len, observation_space):
-		self.max_len = max_len
-		self.observation_space = observation_space
-
-		self.states = np.zeros([max_len] + list(observation_space), dtype=float)
-		self.actions = np.zeros(max_len, dtype=int)
-		self.rewards = np.zeros(max_len, dtype=float)
-		self.new_states = np.zeros([max_len] + list(observation_space), dtype=float)
-		self.dones = np.zeros(max_len, dtype=bool)
-
-		self.head = 0
-		self.fill = 0
-
-	def __len__(self):
-		return self.fill
-
-	def __getitem__(self, idx):
-		return self.states[idx], self.actions[idx], self.rewards[idx], self.new_states[idx], self.dones[idx]
-
-	def random_access(self, n):
-		indices = random.sample(range(len(self)), n)
-		return self[indices]
-
-	def add_safe(self, states, actions, rewards, new_states, done, add):
-		begin = self.head
-		end = begin + add
-		self.states[begin:end] = states[:add]
-		self.actions[begin:end] = actions[:add]
-		self.rewards[begin:end] = rewards[:add]
-		self.new_states[begin:end] = new_states[:add]
-		self.dones[begin:end] = np.ones(add) * done
-
-	def append(self, states, actions, rewards, new_states, done):
-		add = min(self.max_len - self.head, len(actions))
-		self.add_safe(states, actions, rewards, new_states, done, add)
-
-		self.fill = min(self.max_len, self.head + add)
-		self.head = (self.head + add) % self.max_len
-
-		if add != len(actions):
-			self.append(states[add:], actions[add:], rewards[add:], new_states[add:], done)
-
-
 class ExploreAgent(Agent):
 	def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=3):
 		super(ExploreAgent, self).__init__("explore_agent")

@@ -3,7 +3,7 @@ from tqdm import tqdm
 import datetime
 import time
 import sys
-import tensorflow as tf
+# import tensorflow as tf
 
 from gui.visualize import Visualizer
 
@@ -14,8 +14,8 @@ from agents.random_agent import RandomAgent
 from environment.rewards.exploration_reward import ExplorationReward
 
 from agents.explore_agent_pytorch import ExploreAgentPytorch
-from agents.explore_agent import ExploreAgent
-from agents.collect_agent import CollectAgent
+# from agents.explore_agent import ExploreAgent
+from agents.collect_agent_rework import CollectAgentRework
 
 
 # -------------------------------------------
@@ -34,9 +34,9 @@ save_file_name = "collect_agent.arl"
 
 
 def main():
-    episodes = 30
+    episodes = 50
     steps = 500
-    n_ants = 10
+    n_ants = 16
     states = []
 
     # Setting up environment
@@ -61,8 +61,8 @@ def main():
     api.save_perceptive_field = True
 
     # Setting up RL Agent
-    agent = ExploreAgent(epsilon=0.1,
-                         discount=0.5,
+    agent = CollectAgentRework(epsilon=0.1,
+                         discount=0.9,
                          rotations=3,
                          pheromones=3)
     agent_is_setup = False
@@ -93,7 +93,7 @@ def main():
                 states.append(env.save_state())
 
             # Compute the next action of the agents
-            action = agent.get_action(obs, training)
+            action = agent.get_action(obs, agent_state, training)
 
             # Execute the action
             new_state, new_agent_state, reward, done = api.step(*action)
@@ -129,7 +129,7 @@ def main():
                 print("\rAverage loss : {:.5f} --".format(avg_loss),
                       "Episode reward stats: mean {:.2f} - min {:.2f} - max {:.2f} - std {:.2f} - total {:.2f} --".format(
                           mean_reward, min_reward, max_reward, var_reward, total_reward),
-                      "Avg-time per step: {:.3f}ms".format(avg_time),
+                      "Avg-time per step: {:.3f}ms, step {}/{}".format(avg_time, s+1, steps),
                       end="")
 
             # Pass new step
