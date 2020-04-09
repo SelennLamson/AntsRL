@@ -32,7 +32,6 @@ class CollectModel(nn.Module):
             if "layer1" in name:
                 p.requires_grad = False
 
-
         input_size = 1
         for dim in observation_space:
             input_size *= dim

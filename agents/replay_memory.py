@@ -96,9 +96,9 @@ class ReplayMemory(Dataset):
 
 		# Concatenate and reshape actions to have a ndarray of shape (n_ants, 2)
 		if actions[1] is not None:
-			actions = np.concatenate((actions[0], actions[1]), axis=0).reshape((-1, self.action_space[0]))
+			actions = np.stack((actions[0], actions[1]), axis=-1)
 		else:
-			actions = np.concatenate((actions[0], np.ones(actions[0].shape)), axis=0).reshape((-1, self.action_space[0]))
+			actions = np.stack((actions[0], np.ones(actions[0].shape)), axis=-1)
 
 		# Add those elements
 		self._extend_unsafe(states, agent_states, actions, rewards, new_states, new_agent_states, done, add)
