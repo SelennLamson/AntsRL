@@ -34,10 +34,12 @@ class CollectModelRework(nn.Module):
             self.agent_input_size *= dim
 
         self.layer1 = nn.Linear(self.input_size + self.agent_input_size, 32)
-        self.layer2 = nn.Linear(32, self.input_size + self.agent_input_size)
+        self.layer2 = nn.Linear(32, 32)
+        self.layer3 = nn.Linear(32, self.input_size + self.agent_input_size)
 
         self.rotation_layer1 = nn.Linear(self.input_size + self.agent_input_size, 32)
-        self.rotation_layer2 = nn.Linear(32, rotations)
+        self.rotation_layer2 = nn.Linear(32, 32)
+        self.rotation_layer3 = nn.Linear(32, rotations)
 
         self.pheromone_layer1 = nn.Linear(self.input_size + self.agent_input_size, 32)
         self.pheromone_layer2 = nn.Linear(32, pheromones)
@@ -45,9 +47,11 @@ class CollectModelRework(nn.Module):
     def forward(self, state, agent_state):
         general = self.layer1(torch.cat([state.view(-1, self.input_size), agent_state.view(-1, self.agent_input_size)], dim=1))
         general = self.layer2(general)
+        general = self.layer3(general)
 
         rotation = self.rotation_layer1(general)
         rotation = self.rotation_layer2(rotation)
+        rotation = self.rotation_layer3(rotation)
 
         pheromone = self.pheromone_layer1(general)
         pheromone = self.pheromone_layer2(pheromone)

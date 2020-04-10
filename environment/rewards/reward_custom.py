@@ -59,6 +59,7 @@ class All_Rewards(Reward):
 
 		# Computing how many new blocks were explored by each ant
 		self.rewards_explore = np.sum(1 - self.explored_map[obs_coords[:, :, :, 0], obs_coords[:, :, :, 1]], axis=(1, 2)) / 10
+		self.rewards_explore = np.array([r if i==0 else -r for r, i in zip(self.rewards_explore, self.ants_holding)])
 		# Writing exploration to exploration map
 		self.explored_map[obs_coords[:, :, :, 0], obs_coords[:, :, :, 1]] = True
 

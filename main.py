@@ -2,8 +2,7 @@ import pickle
 from tqdm import tqdm
 import datetime
 import time
-import sys
-# import tensorflow as tf
+import math
 
 from gui.visualize import Visualizer
 
@@ -11,7 +10,7 @@ from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
 from agents.random_agent import RandomAgent
-from environment.rewards.exploration_reward import *
+from environment.rewards.reward_custom import *
 
 from agents.explore_agent_pytorch import ExploreAgentPytorch
 # from agents.explore_agent import ExploreAgent
@@ -34,9 +33,9 @@ save_file_name = "collect_agent.arl"
 
 
 def main():
-    episodes = 1
-    steps = 750
-    n_ants = 15
+    episodes = 150
+    steps = 500
+    n_ants = 10
     states = []
 
     # Setting up environment
@@ -51,10 +50,10 @@ def main():
 
     # Setting up RL Reward
     #reward = ExplorationReward()
-    reward = All_Rewards(fct_explore=0.01, fct_food=1, fct_anthill=5)
+    reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=50)
 
     # Setting up RL Api
-    api = RLApi(reward=reward,
+    api = RLApi(reward=reward_funct,
                 reward_threshold=1,
                 max_speed=1,
                 max_rot_speed=45,
@@ -63,10 +62,12 @@ def main():
     api.save_perceptive_field = True
 
     # Setting up RL Agent
-    agent = CollectAgentRework(epsilon=0.1,
+    agent = CollectAgentRework(epsilon=0.9,
                          discount=0.9,
                          rotations=3,
                          pheromones=3)
+    min_learning_rate = 0.1
+
     agent_is_setup = False
 
     avg_loss = None
@@ -90,9 +91,6 @@ def main():
 
         for s in range(steps):
             now = time.time()
-
-            if (episode + 1) % 10 == 0 or episode == 0 or not training:
-                states.append(env.save_state())
 
             # Compute the next action of the agents
             action = agent.get_action(obs, agent_state, training)
@@ -146,6 +144,10 @@ def main():
             if (episode + 1) % 10 == 0 or episode == 0 or not training:
                 states.append(env.save_state())
 
+
+        agent.epsilon = max(min_learning_rate,  min(1, 1.0 - math.log10((episode+1)/15)))
+        print('\n Epsilon : ', agent.epsilon)
+
     pickle.dump(states, open("saved/" + save_file_name, "wb"))
 
     if save_model and training:
@@ -154,10 +156,11 @@ def main():
         agent.save_model(model_name)
 
 
+
 if __name__ == '__main__':
     if not only_visualize:
         main()
 
     visualiser = Visualizer()
-    visualiser.big_dim = 700
+    visualiser.big_dim = 900
     visualiser.visualize(save_file_name)
