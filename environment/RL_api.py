@@ -160,7 +160,7 @@ class RLApi (EnvObject):
         agent_state[:, 0] = self.ants.holding
         agent_state[:, 1] = self.ants.seed
 
-        self.reward.observation(abs_coords, perception)
+        self.reward.observation(abs_coords, perception, agent_state)
         return perception, agent_state, state
 
 

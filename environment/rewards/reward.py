@@ -18,7 +18,7 @@ class Reward (ABC):
 		self.environment = ants.environment
 		self.rewards = np.zeros(self.ants.n_ants, dtype=float)
 
-	def observation(self, obs_coords, perception):
+	def observation(self, obs_coords, perception, agent_state):
 		"""
 		Called by the RL Api when performing an observation.
 		:param obs_coords: the coordinates observed by each individual ant

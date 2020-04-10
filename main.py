@@ -11,7 +11,7 @@ from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
 from agents.random_agent import RandomAgent
-from environment.rewards.exploration_reward import ExplorationReward
+from environment.rewards.exploration_reward import *
 
 from agents.explore_agent_pytorch import ExploreAgentPytorch
 # from agents.explore_agent import ExploreAgent
@@ -22,11 +22,11 @@ from agents.collect_agent_rework import CollectAgentRework
 #               Main parameters
 # -------------------------------------------
 aggregate_stats_every = 5
-save_model = False
+save_model = True
 training = True
 use_model = None
 only_visualize = False
-#use_model = "6_4_14_explore_agent_pytorch.h5"
+#use_model = "10_4_14_collect_agent_rework.h5"
 save_file_name = "collect_agent.arl"
 
 
@@ -35,8 +35,8 @@ save_file_name = "collect_agent.arl"
 
 def main():
     episodes = 50
-    steps = 500
-    n_ants = 16
+    steps = 750
+    n_ants = 15
     states = []
 
     # Setting up environment
@@ -50,7 +50,8 @@ def main():
                                      max_steps=steps)
 
     # Setting up RL Reward
-    reward = ExplorationReward()
+    #reward = ExplorationReward()
+    reward = All_Rewards(fct_explore=0.01, fct_food=1, fct_anthill=5)
 
     # Setting up RL Api
     api = RLApi(reward=reward,
@@ -88,9 +89,6 @@ def main():
 
         for s in range(steps):
             now = time.time()
-
-            if (episode + 1) % 10 == 0 or episode == 0 or not training:
-                states.append(env.save_state())
 
             # Compute the next action of the agents
             action = agent.get_action(obs, agent_state, training)
@@ -140,6 +138,9 @@ def main():
                 avg_time = elapsed
             else:
                 avg_time = 0.99 * avg_time + 0.01 * elapsed
+
+            if (episode + 1) % 10 == 0 or episode == 0 or not training:
+                states.append(env.save_state())
 
     pickle.dump(states, open("saved/" + save_file_name, "wb"))
 
