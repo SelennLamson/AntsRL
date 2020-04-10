@@ -6,11 +6,12 @@ from .pheromone import Pheromone
 from .food import Food
 
 class AntsVisualization(EnvObject):
-    def __init__(self, env, ants_xyt, mandibles, holding):
+    def __init__(self, env, ants_xyt, mandibles, holding, reward_state):
         super().__init__(env)
         self.ants = ants_xyt.copy()
         self.mandibles = mandibles.copy()
         self.holding = holding.copy()
+        self.reward_state = reward_state.copy()
 
 
 class Ants (EnvObject):
@@ -34,12 +35,13 @@ class Ants (EnvObject):
         # True when mandibles are closed (active)
         self.mandibles = np.zeros(n_ants, dtype=bool)
         self.holding = np.zeros(n_ants)
+        self.reward_state = np.zeros(n_ants, dtype=np.uint8)
 
         # Random seed specific to each ant:
         self.seed = np.random.random(n_ants)
 
     def visualize_copy(self, newenv):
-        return AntsVisualization(newenv, self.ants, self.mandibles, self.holding)
+        return AntsVisualization(newenv, self.ants, self.mandibles, self.holding, self.reward_state)
 
     @property
     def x(self):
@@ -114,6 +116,9 @@ class Ants (EnvObject):
                 obj.qte[xy[:, 0], xy[:, 1]] += dropped - taken
                 self.holding += taken - dropped
 
+    def give_reward(self, added_rewards):
+        add = (added_rewards > 0) * 255
+        self.reward_state = np.minimum(self.reward_state + add, 255)
 
     def update(self):
         self.prev_ants = self.ants.copy()
@@ -122,6 +127,7 @@ class Ants (EnvObject):
                 if obj in self.pheromones:
                     phero_i = self.pheromones.index(obj)
                     self.emit_pheromones(phero_i)
+        self.reward_state = (self.reward_state * 0.9).astype(np.uint8)
 
     def update_step(self):
         return 999

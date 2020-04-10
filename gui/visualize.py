@@ -12,10 +12,12 @@ from environment.food import FoodVisualization
 from environment.RL_api import RLVisualization
 from environment.anthill import AnthillVisualization
 
+REWARD_ANTS_COLOR = np.array([255, 255, 128, 255])
 FOOD_COLOR = (64, 255, 64)
 PERCEPTIVE_FIELD_COLOR = (255, 255, 0)
 ANTHILL_COLOR = (0, 0, 255, 128)
 ANTS_SIZE = (24, 24) # Original image size: (32, 32)
+
 
 
 def mix_alpha(rgb1, alpha1, rgb2, alpha2):
@@ -148,12 +150,12 @@ class Visualizer:
         small_font = pygame.font.SysFont('consolas', 16, False)
 
         # --- LOADING ASSETS ---
-        self.ant = pygame.transform.smoothscale(pygame.image.load("assets/ant_32.png"), ANTS_SIZE)
+        self.ant = pygame.transform.smoothscale(pygame.image.load("assets/ant_32_white.png"), ANTS_SIZE)
         self.dirt = pygame.image.load("assets/dirt.jpg")
         self.rock = pygame.image.load("assets/rock.png")
         self.rock_tile = pygame.image.load("assets/rock_tile.jpg")
 
-        self.holding_ant = pygame.transform.smoothscale(pygame.image.load("assets/holding_ant_32.png"), ANTS_SIZE)
+        self.holding_ant = pygame.transform.smoothscale(pygame.image.load("assets/carried_food_32.png"), ANTS_SIZE)
         color = pygame.Surface((100, 100))
         color.fill(FOOD_COLOR)
         self.holding_ant.blit(color, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
@@ -193,8 +195,16 @@ class Visualizer:
 
                     # Display one ant at each location, with holding food icon if it's the case
                     for i, (x, y, t) in enumerate(xyt):
+                        img = self.ant.copy()
+                        color = pygame.Surface((100, 100))
+                        color.fill((REWARD_ANTS_COLOR * obj.reward_state[i] / 255).astype(np.uint8))
+                        img.blit(color, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+
+                        if obj.holding[i] > 0:
+                            img.blit(self.holding_ant, (0, 0))
+
                         # img = self.ant if not obj.mandibles[i] else self.holding_ant
-                        img = self.ant if obj.holding[i] == 0 else self.holding_ant
+                        # img = self.ant if obj.holding[i] == 0 else self.holding_ant
                         rotated = pygame.transform.rotate(img, t / np.pi * 180 - 90)
                         self.ants_layer.blit(rotated, (x - rotated.get_width()/2, y - rotated.get_height()/2))
 

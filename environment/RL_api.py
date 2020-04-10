@@ -20,7 +20,7 @@ class RLVisualization(EnvObject):
         self.heatmap = heatmap
 
 class RLApi (EnvObject):
-    def __init__(self, reward: Reward, max_speed: float, max_rot_speed: float, carry_speed_reduction: float, backward_speed_reduction: float):
+    def __init__(self, reward: Reward, reward_threshold: float, max_speed: float, max_rot_speed: float, carry_speed_reduction: float, backward_speed_reduction: float):
         """ Initializes an RL API. Call register_ants to register this API to a group of ants and its environment.
         :param max_speed: The maximum forward and backward speed at which ants can move.
         :param max_rot_speed: The maximum number of radians ants can turn at each step.
@@ -29,6 +29,7 @@ class RLApi (EnvObject):
         """
         super().__init__(None)
         self.reward = reward
+        self.reward_threshold = reward_threshold
 
         self.ants = None
         self.original_ants_position = None
@@ -199,4 +200,5 @@ class RLApi (EnvObject):
         done = self.environment.max_time == self.environment.timestep
 
         reward = self.reward.step(done, rotation, open_close_mandibles, on_off_pheromones)
+        self.ants.give_reward(reward - self.reward_threshold)
         return perception, agent_state, reward, done
