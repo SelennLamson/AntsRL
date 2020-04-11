@@ -33,7 +33,8 @@ save_file_name = "collect_agent.arl"
 
 
 def main():
-    episodes = 150
+    episodes = 200
+
     steps = 500
     n_ants = 10
     states = []
@@ -50,7 +51,7 @@ def main():
 
     # Setting up RL Reward
     #reward = ExplorationReward()
-    reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=50)
+    reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=100)
 
     # Setting up RL Api
     api = RLApi(reward=reward_funct,
@@ -141,7 +142,7 @@ def main():
             else:
                 avg_time = 0.99 * avg_time + 0.01 * elapsed
 
-            if (episode + 1) % 10 == 0 or episode == 0 or not training:
+            if (episode + 1) % 2 == 0 or episode == 0 or not training:
                 states.append(env.save_state())
 
 
