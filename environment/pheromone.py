@@ -2,7 +2,7 @@ import numpy as np
 from scipy.signal import convolve2d
 from .environment import Environment, EnvObject
 
-DIFFUSE_FACTOR = 0.001
+DIFFUSE_FACTOR = 0.0005
 EVAP_FACTOR = 0.0005
 DIFFUSE_FILTER = np.ones((3, 3)) * DIFFUSE_FACTOR
 DIFFUSE_FILTER[1, 1] = 1 - 8 * DIFFUSE_FACTOR

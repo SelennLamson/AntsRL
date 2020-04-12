@@ -24,10 +24,10 @@ from agents.collect_agent_memory import CollectAgentMemory
 aggregate_stats_every = 5
 save_model = True
 visualize_every = 10      # Save every X episodes for visualisation
-training = False
-# use_model = None
+training = True
+use_model = None
 only_visualize = False
-use_model = "12_4_15_collect_agent_memory.h5"
+# use_model = "12_4_17_collect_agent_memory.h5"
 save_file_name = "collect_agent.arl"
 
 
@@ -35,11 +35,14 @@ save_file_name = "collect_agent.arl"
 
 
 def main():
-    episodes = 3
+    episodes = 30
 
-    steps = 200
+    steps = 1000
     n_ants = 20
     states = []
+
+    min_epsilon = 0.1
+    max_epsilon = 0.5
 
     # Setting up environment
     generator = EnvironmentGenerator(w=200,
@@ -48,13 +51,14 @@ def main():
                                      n_pheromones=2,
                                      n_rocks=0,
                                      food_generator=CirclesGenerator(15, 5, 10),
-                                     walls_generator=PerlinGenerator(scale=22.0, density=0.06), # 0.06
+                                     walls_generator=PerlinGenerator(scale=22.0, density=10), # 0.06
                                      max_steps=steps,
-                                     seed=123456)
+                                     seed=None)
 
     # Setting up RL Reward
     #reward = ExplorationReward()
-    reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=100, fct_explore_holding=0.1)
+    # reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=100, fct_explore_holding=0.1)
+    reward_funct = All_Rewards(fct_explore=1, fct_food=3, fct_anthill=10, fct_explore_holding=0)
 
     # Setting up RL Api
     api = RLApi(reward=reward_funct,
@@ -70,7 +74,6 @@ def main():
                          discount=0.99,
                          rotations=3,
                          pheromones=3)
-    min_learning_rate = 0.1
 
     agent_is_setup = False
 
@@ -149,7 +152,7 @@ def main():
                 states.append(env.save_state())
 
 
-        agent.epsilon = max(min_learning_rate,  min(1, 1.0 - math.log10((episode+1)/5)))
+        agent.epsilon = max(min_epsilon,  min(max_epsilon, 1.0 - math.log10((episode+1)/5)))
         print('\n Epsilon : ', agent.epsilon)
 
     pickle.dump(states, open("saved/" + save_file_name, "wb"))
