@@ -24,10 +24,10 @@ from agents.collect_agent_memory import CollectAgentMemory
 aggregate_stats_every = 5
 save_model = True
 visualize_every = 10      # Save every X episodes for visualisation
-training = False
-# use_model = None
+training = True
+use_model = None
 only_visualize = False
-use_model = "12_4_15_collect_agent_memory.h5"
+#use_model = "12_4_15_collect_agent_memory.h5"
 save_file_name = "collect_agent.arl"
 
 
@@ -35,10 +35,10 @@ save_file_name = "collect_agent.arl"
 
 
 def main():
-    episodes = 3
+    episodes = 100
 
-    steps = 200
-    n_ants = 20
+    steps = 500
+    n_ants = 10
     states = []
 
     # Setting up environment
@@ -48,7 +48,7 @@ def main():
                                      n_pheromones=2,
                                      n_rocks=0,
                                      food_generator=CirclesGenerator(15, 5, 10),
-                                     walls_generator=PerlinGenerator(scale=22.0, density=0.06), # 0.06
+                                     walls_generator=PerlinGenerator(scale=22.0, density=1), # 0.06
                                      max_steps=steps,
                                      seed=123456)
 
@@ -66,7 +66,7 @@ def main():
     api.save_perceptive_field = True
 
     # Setting up RL Agent
-    agent = CollectAgentMemory(epsilon=0.9,
+    agent = CollectAgentRework(epsilon=0.9,
                          discount=0.99,
                          rotations=3,
                          pheromones=3)

@@ -132,8 +132,8 @@ class CollectAgentRework(Agent):
 
         output = self.model(mem_states, mem_agent_state)
         loss_rotation = self.criterion(output[0], target_qs_rotation)
-        loss_pheromones = self.criterion(output[1], target_qs_pheromones)
-        loss = loss_rotation + loss_pheromones
+        #loss_pheromones = self.criterion(output[1], target_qs_pheromones)
+        loss = loss_rotation
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -171,12 +171,12 @@ class CollectAgentRework(Agent):
                 action_rot = torch.max(qs_rotation, dim=1).indices.numpy()
                 action_phero = torch.max(qs_pheromones, dim=1).indices.numpy()
             rotation = action_rot - self.rotations // 2
-            pheromone = action_phero
+            pheromone = np.ones(self.n_ants)
         else:
             # Random turn
             rotation = np.random.randint(low=0, high=self.rotations, size=self.n_ants) - self.rotations // 2
             # Random pheromones
-            pheromone = np.random.randint(low=0, high=self.pheromones, size=self.n_ants)
+            pheromone = np.ones(self.n_ants)
 
         return rotation, pheromone
 
