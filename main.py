@@ -15,17 +15,19 @@ from environment.rewards.reward_custom import *
 from agents.explore_agent_pytorch import ExploreAgentPytorch
 # from agents.explore_agent import ExploreAgent
 from agents.collect_agent_rework import CollectAgentRework
+from agents.collect_agent_memory import CollectAgentMemory
 
 
 # -------------------------------------------
 #               Main parameters
 # -------------------------------------------
 aggregate_stats_every = 5
-save_model = False
-training = True
-use_model = None
+save_model = True
+visualize_every = 10      # Save every X episodes for visualisation
+training = False
+# use_model = None
 only_visualize = False
-#use_model = "6_4_14_explore_agent_pytorch.h5"
+use_model = "12_4_15_collect_agent_memory.h5"
 save_file_name = "collect_agent.arl"
 
 
@@ -33,10 +35,10 @@ save_file_name = "collect_agent.arl"
 
 
 def main():
-    episodes = 200
+    episodes = 3
 
-    steps = 500
-    n_ants = 10
+    steps = 200
+    n_ants = 20
     states = []
 
     # Setting up environment
@@ -45,13 +47,14 @@ def main():
                                      n_ants=n_ants,
                                      n_pheromones=2,
                                      n_rocks=0,
-                                     food_generator=CirclesGenerator(10, 5, 10),
-                                     walls_generator=PerlinGenerator(scale=22.0, density=0.06),
-                                     max_steps=steps)
+                                     food_generator=CirclesGenerator(15, 5, 10),
+                                     walls_generator=PerlinGenerator(scale=22.0, density=0.06), # 0.06
+                                     max_steps=steps,
+                                     seed=123456)
 
     # Setting up RL Reward
     #reward = ExplorationReward()
-    reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=100)
+    reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=100, fct_explore_holding=0.1)
 
     # Setting up RL Api
     api = RLApi(reward=reward_funct,
@@ -63,8 +66,8 @@ def main():
     api.save_perceptive_field = True
 
     # Setting up RL Agent
-    agent = CollectAgentRework(epsilon=0.9,
-                         discount=0.9,
+    agent = CollectAgentMemory(epsilon=0.9,
+                         discount=0.99,
                          rotations=3,
                          pheromones=3)
     min_learning_rate = 0.1
@@ -97,7 +100,7 @@ def main():
             action = agent.get_action(obs, agent_state, training)
 
             # Execute the action
-            new_state, new_agent_state, reward, done = api.step(*action)
+            new_state, new_agent_state, reward, done = api.step(*action[:2])
 
             # Add the reward to total reward of episode
             episode_reward += reward
@@ -142,11 +145,11 @@ def main():
             else:
                 avg_time = 0.99 * avg_time + 0.01 * elapsed
 
-            if (episode + 1) % 2 == 0 or episode == 0 or not training:
+            if (episode + 1) % visualize_every == 0 or episode == 0 or not training:
                 states.append(env.save_state())
 
 
-        agent.epsilon = max(min_learning_rate,  min(1, 1.0 - math.log10((episode+1)/15)))
+        agent.epsilon = max(min_learning_rate,  min(1, 1.0 - math.log10((episode+1)/5)))
         print('\n Epsilon : ', agent.epsilon)
 
     pickle.dump(states, open("saved/" + save_file_name, "wb"))

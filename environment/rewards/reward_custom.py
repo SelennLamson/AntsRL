@@ -40,12 +40,13 @@ class Food_Reward(Reward):
 
 
 class All_Rewards(Reward):
-    def __init__(self, fct_explore=1, fct_food=1, fct_anthill=5):
+    def __init__(self, fct_explore=1, fct_food=1, fct_anthill=5, fct_explore_holding=1):
         super(All_Rewards, self).__init__()
         self.explored_map = None
         self.fct_explore = fct_explore
         self.fct_food = fct_food
         self.fct_anthill = fct_anthill
+        self.fct_explore_holding = fct_explore_holding
 
     def setup(self, ants: Ants):
         super(All_Rewards, self).setup(ants)
@@ -62,7 +63,7 @@ class All_Rewards(Reward):
         # Computing how many new blocks were explored by each ant
         self.rewards_explore = np.sum(1 - self.explored_map[obs_coords[:, :, :, 0], obs_coords[:, :, :, 1]],
                                       axis=(1, 2)) / 10
-        self.rewards_explore = np.array([r if i==0 else -r for r, i in zip(self.rewards_explore, self.ants_holding)])
+        self.rewards_explore = np.array([r * self.fct_explore if h == 0 else r * self.fct_explore_holding for r, h in zip(self.rewards_explore, self.ants_holding)])
         # Writing exploration to exploration map
         self.explored_map[obs_coords[:, :, :, 0], obs_coords[:, :, :, 1]] = True
 
@@ -70,7 +71,7 @@ class All_Rewards(Reward):
         self.rewards_anthill[self.rewards_anthill > 0] = 0
         self.rewards_anthill[self.rewards_anthill < 0] = 1
 
-        self.rewards = self.rewards_explore * self.fct_explore + self.rewards_food * self.fct_food + self.rewards_anthill * self.fct_anthill
+        self.rewards = self.rewards_explore + self.rewards_food * self.fct_food + self.rewards_anthill * self.fct_anthill
 
     def visualization(self):
         return self.explored_map.copy()
