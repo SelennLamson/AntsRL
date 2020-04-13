@@ -105,7 +105,7 @@ class ReplayMemory(Dataset):
         self._extend_unsafe(states, agent_states, actions, rewards, new_states, new_agent_states, done, add)
 
         # Updating fill (how much space is left in the replay memory, before saturation)
-        self.fill = min(self.max_len, self.head + add)
+        self.fill = max(self.fill, min(self.max_len, self.head + add))
 
         # Updating head position, putting it back to 0 if reached max length
         self.head = (self.head + add) % self.max_len

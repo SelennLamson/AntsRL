@@ -20,30 +20,32 @@ from agents.random_agent import RandomAgent
 from agents.collect_agent_rework import CollectAgentRework
 from agents.collect_agent_memory import CollectAgentMemory
 
+import matplotlib.pyplot as plt
+
 
 # -------------------------------------------
 #               Main parameters
 # -------------------------------------------
 aggregate_stats_every = 5
 save_model = True
-visualize_every = 25      # Save every X episodes for visualisation
+visualize_every = 10      # Save every X episodes for visualisation
 training = True
-use_model = None
 only_visualize = False
-# use_model = "13_4_13_collect_agent_memory.h5"
+# use_model = None
+use_model = "13_4_19_collect_agent_memory.h5"
 save_file_name = "collect_agent.arl"
 
 episodes = 50
 steps = 1000
 
-min_epsilon = 0.05
-max_epsilon = 0.5
+min_epsilon = 0.1
+max_epsilon = 1
 # -------------------------------------------
 
 # Key: step of episode      Value: list of reward factors
 reward_sequence = {
-    0: [100, 0, 0, 0],
-    200: [1, 10, 100, 100],
+    # 0: [1, 0, 0, 0],
+    0: [1, 10, 50, 100],
     # 500: [0, 0, 100]
 }
 
@@ -59,32 +61,31 @@ def main():
                                      n_ants=n_ants,
                                      n_pheromones=2,
                                      n_rocks=0,
-                                     food_generator=AvoidingCirclesGenerator(15, 5, 10, 100, 100, 30),
-                                     walls_generator=PerlinGenerator(scale=22.0, density=10), # 0.06
+                                     food_generator=AvoidingCirclesGenerator(15, 5, 10, 100, 100, 20),
+                                     walls_generator=PerlinGenerator(scale=22.0, density=0.2), # 0.06
                                      max_steps=steps,
                                      seed=None)
 
     # Setting up RL Rewards
     rewards = [
-        ExploreReward(1),
-        PickUpFoodReward(10),
-        AnthillHeadingReward(10),
-        FeedAnthillReward(100)
+        ExploreReward(0.2),
+        PickUpFoodReward(0.9),
+        AnthillHeadingReward(0.7),
+        FeedAnthillReward(0.99)
     ]
 
     # Setting up RL Api
     api = RLApi(rewards=rewards,
-                reward_threshold=1,
+                reward_threshold=0,
                 max_speed=1,
-                max_rot_speed=45,
+                max_rot_speed=49 / 180 * np.pi,
                 carry_speed_reduction=0.05,
                 backward_speed_reduction=0.5)
     api.save_perceptive_field = True
 
     # Setting up RL Agent
     agent = CollectAgentMemory(rewards=rewards,
-                               epsilon=0.9,
-                               discount=0.99,
+                               epsilon=1,
                                rotations=3,
                                pheromones=3)
 
@@ -92,10 +93,11 @@ def main():
 
     avg_loss = None
     avg_time = None
+    first_save = True
 
     print("Starting simulation...")
     for episode in range(episodes):
-        visualize_episode = (episode + 1) % visualize_every == 0 or episode == 0 or not training
+        visualize_episode = (episode + 1) % visualize_every == 0 or not training
 
         env = generator.generate(api)
         print('\n--- Episode {}/{} --- {}'.format(episode + 1, episodes, "VISUALIZED" if visualize_episode else ""))
@@ -157,7 +159,7 @@ def main():
                       # "Episode reward stats: mean {:.2f} - min {:.2f} - max {:.2f} - std {:.2f} - total {:.2f} --".format(
                       #     mean_reward, min_reward, max_reward, var_reward, total_reward),
                       "Episode rewards: {} --".format(
-                           total_reward),
+                           total_reward.astype(int)),
                       "Avg-time per step: {:.3f}ms, step {}/{}".format(avg_time, s+1, steps),
                       "-- E.T.A: {} min {} sec".format(eta_seconds // 60, eta_seconds % 60),
                       end="")
@@ -175,8 +177,9 @@ def main():
                 states.append(env.save_state())
 
         if visualize_episode:
-            if episode == 0:
+            if first_save:
                 previous_states = []
+                first_save = False
             else:
                 previous_states = pickle.load(open("saved/" + save_file_name, "rb"))
 

@@ -150,6 +150,9 @@ class RLApi (EnvObject):
         agent_state = np.zeros((self.ants.n_ants, 2))
         agent_state[:, 0] = self.ants.holding
         agent_state[:, 1] = self.ants.seed
+        # agent_state[:, 2] = self.ants.x / self.environment.w
+        # agent_state[:, 3] = self.ants.y / self.environment.h
+        # agent_state[:, 4] = self.ants.theta / (2 * np.pi)
 
         for r in self.rewards:
             r.observation(abs_coords, perception, agent_state)
@@ -193,6 +196,8 @@ class RLApi (EnvObject):
         reward = np.zeros((self.ants.n_ants, len(self.rewards)))
         for i, r in enumerate(self.rewards):
             reward[:, i] = r.step(done, rotation, open_close_mandibles, on_off_pheromones)
-        self.ants.give_reward(np.sum(reward, axis=1) - self.reward_threshold)
+
+        # total_rewards = np.sum([reward[:, i] * r.factor for i, r in enumerate(self.rewards)], axis=0)
+        self.ants.give_reward(reward[:, 2] - self.reward_threshold)
 
         return perception, agent_state, reward, done

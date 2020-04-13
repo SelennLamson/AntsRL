@@ -4,8 +4,8 @@ from environment.ants import Ants
 from environment.rewards.reward import Reward
 
 class ExploreReward(Reward):
-    def __init__(self, factor):
-        super(ExploreReward, self).__init__(factor)
+    def __init__(self, discount):
+        super(ExploreReward, self).__init__(discount)
         self.explored_map = None
 
     def setup(self, ants: Ants):
@@ -14,7 +14,7 @@ class ExploreReward(Reward):
 
     def observation(self, obs_coords, perception, agent_state):
         # Computing how many new blocks were explored by each ant
-        self.rewards = np.sum(1 - self.explored_map[obs_coords[:, :, :, 0], obs_coords[:, :, :, 1]], axis=(1, 2)) * 0.01
+        self.rewards = np.sum(1 - self.explored_map[obs_coords[:, :, :, 0], obs_coords[:, :, :, 1]], axis=(1, 2)) * 0.1
 
         # Writing exploration to exploration map
         self.explored_map[obs_coords[:, :, :, 0], obs_coords[:, :, :, 1]] = True

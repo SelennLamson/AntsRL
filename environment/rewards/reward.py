@@ -4,8 +4,9 @@ import numpy as np
 from environment.ants import Ants
 
 class Reward (ABC):
-    def __init__(self, factor=1):
-        self.factor = factor
+    def __init__(self, discount):
+        self.discount = discount
+        self.factor = 1
 
         self.ants = None
         self.environment = None
