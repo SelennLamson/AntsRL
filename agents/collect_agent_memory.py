@@ -42,8 +42,7 @@ class CollectModelMemory(nn.Module):
 
         self.rotation_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 64)
         self.rotation_layer2 = nn.Linear(64, 128)
-        self.rotation_layer3 = nn.Linear(128, 32)
-        self.rotation_layer4 = nn.Linear(32, rotations)
+        self.rotation_layer3 = nn.Linear(128, rotations)
 
         self.pheromone_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 32)
         self.pheromone_layer2 = nn.Linear(32, pheromones)
@@ -65,7 +64,6 @@ class CollectModelMemory(nn.Module):
         rotation = self.rotation_layer1(general + all_input)
         rotation = self.rotation_layer2(rotation)
         rotation = self.rotation_layer3(rotation)
-        rotation = self.rotation_layer4(rotation)
 
         pheromone = self.pheromone_layer1(general + all_input)
         pheromone = self.pheromone_layer2(pheromone)

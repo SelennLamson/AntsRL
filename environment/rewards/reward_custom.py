@@ -1,6 +1,7 @@
 import numpy as np
 
 from environment.ants import Ants
+from environment.anthill import Anthill
 from environment.rewards.reward import Reward
 
 
@@ -40,21 +41,40 @@ class Food_Reward(Reward):
 
 
 class All_Rewards(Reward):
-    def __init__(self, fct_explore=1, fct_food=1, fct_anthill=5, fct_explore_holding=1):
+    def __init__(self, fct_explore=1, fct_food=1, fct_anthill=5, fct_explore_holding=0, fct_headinganthill=1):
         super(All_Rewards, self).__init__()
         self.explored_map = None
         self.fct_explore = fct_explore
         self.fct_food = fct_food
         self.fct_anthill = fct_anthill
         self.fct_explore_holding = fct_explore_holding
+        self.fct_headinganthill = fct_headinganthill
+
+        self.previous_dist = None
+        self.anthill_x = 0
+        self.anthill_y = 0
 
         self.ants_holding = None
+
+    def compute_distance(self, x, y):
+        return ((x - self.anthill_x) ** 2 + (y - self.anthill_y) ** 2) ** 0.5
+
+
 
     def setup(self, ants: Ants):
         super(All_Rewards, self).setup(ants)
         self.rewards = self.ants.holding
         self.ants_holding = self.ants.holding
         self.explored_map = np.zeros((self.environment.w, self.environment.h), dtype=bool)
+        self.rewards_anthillheading = np.zeros(ants.n_ants)
+        self.ants = ants
+
+        for obj in ants.environment.objects:
+            if isinstance(obj, Anthill):
+                self.anthill_x = obj.x
+                self.anthill_y = obj.y
+
+        self.previous_dist = self.compute_distance(ants.x, ants.y)
 
     def observation(self, obs_coords, perception, agent_state):
         self.rewards = np.zeros_like(self.rewards)
@@ -77,7 +97,13 @@ class All_Rewards(Reward):
         rewards_anthill[rewards_anthill > 0] = 0
         rewards_anthill[rewards_anthill < 0] = 1
 
-        self.rewards += rewards_food * self.fct_food + rewards_anthill * self.fct_anthill
+        #Heading anthill
+
+        new_dist = self.compute_distance(self.ants.x, self.ants.y)
+        self.rewards_anthillheading = (self.previous_dist > new_dist) * (self.ants.holding > 0) * 0.1
+        self.previous_dist = new_dist
+
+        self.rewards += rewards_food * self.fct_food + rewards_anthill * self.fct_anthill + self.rewards_anthillheading * self.fct_headinganthill
 
     def visualization(self):
         return self.explored_map.copy()
