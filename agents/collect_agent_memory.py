@@ -16,13 +16,13 @@ from agents.replay_memory import ReplayMemory
 
 MODEL_NAME = 'Collect_Agent_Memory'
 
-REPLAY_MEMORY_SIZE = 50000
+REPLAY_MEMORY_SIZE = 5000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MINIBATCH_SIZE = 264
+MINIBATCH_SIZE = 256
 UPDATE_TARGET_EVERY = 1
 
 class CollectModelMemory(nn.Module):
-    def __init__(self, observation_space, agent_space, mem_size, rotations, pheromones):
+    def __init__(self, observation_space, agent_space, mem_size, rotations, pheromones, rewards):
         super(CollectModelMemory, self).__init__()
 
         self.input_size = 1
@@ -35,6 +35,10 @@ class CollectModelMemory(nn.Module):
 
         self.mem_size = mem_size
 
+        self.rotations = rotations
+        self.pheromones = pheromones
+        self.rewards = rewards
+
         self.layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 64)
         self.layer2 = nn.Linear(64, 128)
         self.layer3 = nn.Linear(128, 32)
@@ -43,10 +47,10 @@ class CollectModelMemory(nn.Module):
         self.rotation_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 64)
         self.rotation_layer2 = nn.Linear(64, 128)
         self.rotation_layer3 = nn.Linear(128, 32)
-        self.rotation_layer4 = nn.Linear(32, rotations)
+        self.rotation_layer4 = nn.Linear(32, self.rotations * self.rewards)
 
         self.pheromone_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 32)
-        self.pheromone_layer2 = nn.Linear(32, pheromones)
+        self.pheromone_layer2 = nn.Linear(32, self.pheromones * self.rewards)
 
         self.memory_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 64)
         self.memory_layer2 = nn.Linear(64, 64)
@@ -65,10 +69,10 @@ class CollectModelMemory(nn.Module):
         rotation = self.rotation_layer1(general + all_input)
         rotation = self.rotation_layer2(rotation)
         rotation = self.rotation_layer3(rotation)
-        rotation = self.rotation_layer4(rotation)
+        rotation = self.rotation_layer4(rotation).view(-1, self.rotations, self.rewards)
 
         pheromone = self.pheromone_layer1(general + all_input)
-        pheromone = self.pheromone_layer2(pheromone)
+        pheromone = self.pheromone_layer2(pheromone).view(-1, self.pheromones, self.rewards)
 
         memory = self.memory_layer1(general + all_input)
         memory = self.memory_layer2(memory)
@@ -80,8 +84,10 @@ class CollectModelMemory(nn.Module):
 
 
 class CollectAgentMemory(Agent):
-    def __init__(self, epsilon=0.1, discount=0.5, rotations=3, pheromones=3):
+    def __init__(self, rewards, epsilon=0.1, discount=0.5, rotations=3, pheromones=3):
         super(CollectAgentMemory, self).__init__("collect_agent_memory")
+
+        self.rewards = rewards
 
         self.epsilon = epsilon
         self.discount = discount
@@ -110,12 +116,12 @@ class CollectAgentMemory(Agent):
         self.previous_memory = torch.zeros((rl_api.ants.n_ants, self.mem_size))
         self.agent_and_mem_space = [2 + self.mem_size]
 
-        self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, self.observation_space, self.agent_and_mem_space, self.action_space)
+        self.replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE, len(self.rewards), self.observation_space, self.agent_and_mem_space, self.action_space)
         self.state = torch.zeros([rl_api.ants.n_ants] + list(self.observation_space), dtype=torch.float32)
 
         # Main model
-        self.model = CollectModelMemory(self.observation_space, self.agent_space, self.mem_size, self.rotations, self.pheromones)
-        self.target_model = CollectModelMemory(self.observation_space, self.agent_space, self.mem_size, self.rotations, self.pheromones)
+        self.model = CollectModelMemory(self.observation_space, self.agent_space, self.mem_size, self.rotations, self.pheromones, len(self.rewards))
+        self.target_model = CollectModelMemory(self.observation_space, self.agent_space, self.mem_size, self.rotations, self.pheromones, len(self.rewards))
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
 
@@ -143,19 +149,30 @@ class CollectAgentMemory(Agent):
             future_qs_rotation, future_qs_pheromones, _ = self.target_model(mem_new_states, mem_new_agent_state)
             target_qs_rotation, target_qs_pheromones, _ = self.model(mem_states, mem_agent_state)
 
+            # Computing total Q value to determine max action
+            future_qs_rot = future_qs_rotation.numpy().copy()
+            future_qs_phe = future_qs_pheromones.numpy().copy()
+            for i, r in enumerate(self.rewards):
+                future_qs_rot[:, :, i] *= r.factor
+                future_qs_phe[:, :, i] *= r.factor
+            future_qs_rot = np.sum(future_qs_rot, axis=2)
+            future_qs_phe = np.sum(future_qs_phe, axis=2)
+            max_rot_action = np.argmax(future_qs_rot, axis=1).astype(int)
+            max_phe_action = np.argmax(future_qs_phe, axis=1).astype(int)
+
             # Update Q value for rotation
-            max_future_qs = torch.max(future_qs_rotation, dim=1).values
-            new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
-            target_qs_rotation[np.arange(len(target_qs_rotation)), mem_actions[:, 0].tolist()] = new_qs[np.arange(len(target_qs_rotation))]
+            new_qs_rot = mem_rewards + self.discount * future_qs_rotation[np.arange(MINIBATCH_SIZE), max_rot_action.tolist(), :] * ~mem_done.view(MINIBATCH_SIZE, -1)
+            target_qs_rotation[np.arange(MINIBATCH_SIZE), mem_actions[:, 0].tolist()] = new_qs_rot[np.arange(MINIBATCH_SIZE)]
 
             # Update Q value for pheromones
-            max_future_qs = torch.max(future_qs_pheromones, dim=1).values
-            new_qs = mem_rewards + self.discount * max_future_qs * ~mem_done
-            target_qs_pheromones[np.arange(len(target_qs_pheromones)), mem_actions[:, 1].tolist()] = new_qs[np.arange(len(target_qs_pheromones))]
+            new_qs_phe = mem_rewards + self.discount * future_qs_pheromones[np.arange(MINIBATCH_SIZE), max_phe_action.tolist(), :] * ~mem_done.view(MINIBATCH_SIZE, -1)
+            target_qs_pheromones[np.arange(MINIBATCH_SIZE), mem_actions[:, 1].tolist()] = new_qs_phe[np.arange(MINIBATCH_SIZE)]
 
-        output = self.model(mem_states, mem_agent_state)
-        loss_rotation = self.criterion(output[0], target_qs_rotation)
-        loss_pheromones = self.criterion(output[1], target_qs_pheromones)
+        pred_qs_rotation, pred_qs_pheromones, _ = self.model(mem_states, mem_agent_state)
+
+        loss_rotation = self.criterion(pred_qs_rotation, target_qs_rotation)
+        loss_pheromones = self.criterion(pred_qs_pheromones, target_qs_pheromones)
+
         loss = loss_rotation + loss_pheromones
 
         self.optimizer.zero_grad()
@@ -177,6 +194,7 @@ class CollectAgentMemory(Agent):
     def update_replay_memory(self, states: ndarray, agent_state: ndarray,
                              actions: Tuple[Optional[ndarray], Optional[ndarray]], rewards: ndarray,
                              new_states: ndarray, new_agent_states: ndarray, done: bool):
+
         self.replay_memory.extend(states,
                                   np.hstack([agent_state, self.previous_memory]),
                                   (actions[0] + self.rotations // 2, actions[1]),
@@ -191,8 +209,20 @@ class CollectAgentMemory(Agent):
             with torch.no_grad():
                 #predict = torch.max(self.target_model(torch.Tensor(state)), dim=1).indices.numpy()
                 qs_rotation, qs_pheromones, self.previous_memory = self.target_model(torch.Tensor(state), torch.cat([torch.Tensor(agent_state), self.previous_memory], dim=1))
-                action_rot = torch.max(qs_rotation, dim=1).indices.numpy()
-                action_phero = torch.max(qs_pheromones, dim=1).indices.numpy()
+
+                # print(qs_rotation[0, 1])
+
+                # Computing total Q value to determine max action
+                qs_rot = qs_rotation.numpy()
+                qs_phe = qs_pheromones.numpy()
+                for i, r in enumerate(self.rewards):
+                    qs_rot[:, :, i] *= r.factor
+                    qs_phe[:, :, i] *= r.factor
+                qs_rot = np.sum(qs_rot, axis=2)
+                qs_phe = np.sum(qs_phe, axis=2)
+                action_rot = np.argmax(qs_rot, axis=1).astype(int)
+                action_phero = np.argmax(qs_phe, axis=1).astype(int)
+
             rotation = action_rot - self.rotations // 2
             pheromone = action_phero
         else:

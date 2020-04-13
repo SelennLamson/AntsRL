@@ -57,10 +57,11 @@ class EnvironmentGenerator:
         env = Environment(self.w, self.h, self.max_steps)
         perceived_objects = []
 
-        anthill = Anthill(env,
-                          int(random.random() * self.w * 0.5 + self.w * 0.25),
-                          int(random.random() * self.h * 0.5 + self.h * 0.25),
-                          int(random.random() * min(self.w, self.h) * 0.1 + min(self.w, self.h) * 0.1))
+        # anthill = Anthill(env,
+        #                   int(random.random() * self.w * 0.5 + self.w * 0.25),
+        #                   int(random.random() * self.h * 0.5 + self.h * 0.25),
+        #                   int(random.random() * min(self.w, self.h) * 0.1 + min(self.w, self.h) * 0.1))
+        anthill = Anthill(env, 100, 100, 20)
         perceived_objects.append(anthill)
 
         world_walls = self.walls_generator.generate(self.w, self.h)

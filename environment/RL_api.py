@@ -20,7 +20,7 @@ class RLVisualization(EnvObject):
         self.heatmap = heatmap
 
 class RLApi (EnvObject):
-    def __init__(self, reward: Reward, reward_threshold: float, max_speed: float, max_rot_speed: float, carry_speed_reduction: float, backward_speed_reduction: float):
+    def __init__(self, rewards: List[Reward], reward_threshold: float, max_speed: float, max_rot_speed: float, carry_speed_reduction: float, backward_speed_reduction: float):
         """ Initializes an RL API. Call register_ants to register this API to a group of ants and its environment.
         :param max_speed: The maximum forward and backward speed at which ants can move.
         :param max_rot_speed: The maximum number of radians ants can turn at each step.
@@ -28,7 +28,7 @@ class RLApi (EnvObject):
         :param backward_speed_reduction: How much moving backward reduces the max speed (factor).
         """
         super().__init__(None)
-        self.reward = reward
+        self.rewards = rewards
         self.reward_threshold = reward_threshold
 
         self.ants = None
@@ -51,7 +51,7 @@ class RLApi (EnvObject):
 
 
     def visualize_copy(self, newenv: Environment):
-        return RLVisualization(newenv, self.reward.visualization())
+        return RLVisualization(newenv, sum(r.visualization() for r in self.rewards if r.should_visualize()))
 
 
     def register_ants(self, new_ants: Ants):
@@ -63,19 +63,9 @@ class RLApi (EnvObject):
         self.perceived_objects = []
         self.original_ants_position = new_ants.xy
 
-        self.reward.setup(self.ants)
+        for r in self.rewards:
+            r.setup(self.ants)
 
-    #
-    # def compute_ants_distance(self):
-    # 	"""
-    # 	Return the distance of the ant to the center of the anthill.
-    # 	:return:
-    # 	"""
-    # 	center_anthill = []
-    # 	for obj in self.environment.objects:
-    # 		if isinstance(obj, Anthill):
-    # 			center_anthill.append([obj.x, obj.y])
-    # 	return np.linalg.norm(center_anthill - self.ants.xy)
 
     def setup_perception(self, radius: int, objects: List[EnvObject], mask=None, forward_delta=0):
         """Setups perception parameters for the group of ants.
@@ -161,7 +151,8 @@ class RLApi (EnvObject):
         agent_state[:, 0] = self.ants.holding
         agent_state[:, 1] = self.ants.seed
 
-        self.reward.observation(abs_coords, perception, agent_state)
+        for r in self.rewards:
+            r.observation(abs_coords, perception, agent_state)
         return perception, agent_state, state
 
 
@@ -199,6 +190,9 @@ class RLApi (EnvObject):
 
         done = self.environment.max_time == self.environment.timestep
 
-        reward = self.reward.step(done, rotation, open_close_mandibles, on_off_pheromones)
-        self.ants.give_reward(reward - self.reward_threshold)
+        reward = np.zeros((self.ants.n_ants, len(self.rewards)))
+        for i, r in enumerate(self.rewards):
+            reward[:, i] = r.step(done, rotation, open_close_mandibles, on_off_pheromones)
+        self.ants.give_reward(np.sum(reward, axis=1) - self.reward_threshold)
+
         return perception, agent_state, reward, done

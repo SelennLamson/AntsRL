@@ -8,8 +8,9 @@ class ReplayMemory(Dataset):
     Writing is rolling, meaning that when head reaches the maximum length of arrays, it cycles back to the beginning
     and overwrites old elements."""
 
-    def __init__(self, max_len, observation_space, agent_space, action_space):
+    def __init__(self, max_len, n_rewards, observation_space, agent_space, action_space):
         self.max_len = max_len
+        self.n_rewards = n_rewards
         self.observation_space = observation_space
         self.agent_space = agent_space
         self.action_space = action_space
@@ -18,7 +19,7 @@ class ReplayMemory(Dataset):
         self.states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
         self.agent_states = torch.zeros([max_len] + list(agent_space), dtype=torch.float32)
         self.actions = torch.zeros([max_len] + list(action_space), dtype=int)
-        self.rewards = torch.zeros(max_len, dtype=torch.float32)
+        self.rewards = torch.zeros([max_len, n_rewards], dtype=torch.float32)
         self.new_states = torch.zeros([max_len] + list(observation_space), dtype=torch.float32)
         self.new_agent_states = torch.zeros([max_len] + list(agent_space), dtype=torch.float32)
         self.dones = torch.zeros(max_len, dtype=bool)
