@@ -18,15 +18,15 @@ from agents.collect_agent_memory import CollectAgentMemory
 # -------------------------------------------
 aggregate_stats_every = 5
 save_model = False
-visualize_every = 20      # Save every X episodes for visualisation
+visualize_every = 10      # Save every X episodes for visualisation
 training = False
 use_model = None
 only_visualize = False
-use_model = "13_4_16_collect_agent_memory.h5"
+use_model = "good_model.h5"
 save_file_name = "collect_agent.arl"
 
 
-episodes = 2
+episodes = 1
 steps = 3000
 min_epsilon = 0.1
 max_epsilon = 1
@@ -35,15 +35,6 @@ max_epsilon = 1
 def main():
     states = []
     n_ants = 50
-    # Setting up environment
-    generator = EnvironmentGenerator(w=200,
-                                     h=200,
-                                     n_ants=n_ants,
-                                     n_pheromones=2,
-                                     n_rocks=0,
-                                     food_generator=CirclesGenerator(10, 5, 10),
-                                     walls_generator=PerlinGenerator(scale=22.0, density=1),
-                                     max_steps=steps)
 
     # Setting up RL Reward
     # reward = ExplorationReward()
@@ -61,16 +52,15 @@ def main():
     agent = CollectAgentMemory(epsilon=0.9,
                                discount=0.99,
                                rotations=3,
-                               pheromones=3)
+                               pheromones=3,
+                               learning_rate=0.00001)
     agent_is_setup = False
     avg_loss = None
     avg_time = None
-    density = 1
+
     print("Starting simulation...")
     for episode in range(episodes):
         visualize_episode = (episode + 1) % visualize_every == 0 or episode == 0 or not training
-
-        density = max(0.06, min(0.5, density-0.05))
 
         generator = EnvironmentGenerator(w=200,
                                          h=200,
@@ -98,6 +88,7 @@ def main():
             now = time.time()
             # Compute the next action of the agents
             action = agent.get_action(obs, agent_state, training)
+
             # Execute the action
             new_state, new_agent_state, reward, done = api.step(*action[:2])
             # Add the reward values to total reward of episode
@@ -105,7 +96,7 @@ def main():
             # Update replay memory with new action and states
             agent.update_replay_memory(obs, agent_state, action, reward, new_state, new_agent_state, done)
             # Train the neural network
-            if training:
+            if training and s > 2000:
                 loss = agent.train(done, s)
                 if avg_loss is None:
                     avg_loss = loss
@@ -150,9 +141,8 @@ def main():
             del previous_states
             states = []
         gc.collect()
-        agent.epsilon = max(min_epsilon,  min(max_epsilon, 1.0 - math.log10((episode+1)/5)))
+        agent.epsilon = max(min_epsilon,  min(max_epsilon, 1.0 - math.log10((episode+1)/10)))
         print('\n Epsilon : ', agent.epsilon)
-        print('\n Density : ', density)
     if save_model and training:
         date = datetime.datetime.now()
         model_name = str(date.day) + '_' + str(date.month) + '_' + str(date.hour) + '_' + agent.name + '.h5'
@@ -161,5 +151,5 @@ if __name__ == '__main__':
     if not only_visualize:
         main()
     visualiser = Visualizer()
-    visualiser.big_dim = 800
+    visualiser.big_dim = 700
     visualiser.visualize(save_file_name)

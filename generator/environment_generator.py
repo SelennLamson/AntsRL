@@ -69,7 +69,9 @@ class EnvironmentGenerator:
         perceived_objects.append(walls)
 
         food = Food(env, self.food_generator.generate(self.w, self.h))
+        food.qte *= (1 - walls.map)
         perceived_objects.append(food)
+
 
         if self.n_rocks > 0:
             rock_centers = np.random.random((self.n_rocks, 2))
