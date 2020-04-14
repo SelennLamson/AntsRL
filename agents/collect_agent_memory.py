@@ -84,12 +84,13 @@ class CollectModelMemory(nn.Module):
 
 
 class CollectAgentMemory(Agent):
-    def __init__(self, rewards, epsilon=0.1, rotations=3, pheromones=3):
+    def __init__(self, rewards, epsilon=0.1, learning_rate=1e-5, rotations=3, pheromones=3):
         super(CollectAgentMemory, self).__init__("collect_agent_memory")
 
         self.rewards = rewards
 
         self.epsilon = epsilon
+        self.learning_rate = learning_rate
         self.discount = torch.Tensor([r.discount for r in rewards])
         self.rotations = rotations
         self.pheromones = pheromones
@@ -123,7 +124,7 @@ class CollectAgentMemory(Agent):
         self.model = CollectModelMemory(self.observation_space, self.agent_space, self.mem_size, self.rotations, self.pheromones, len(self.rewards))
         self.target_model = CollectModelMemory(self.observation_space, self.agent_space, self.mem_size, self.rotations, self.pheromones, len(self.rewards))
         self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         if trained_model is not None:
             self.load_model(trained_model)

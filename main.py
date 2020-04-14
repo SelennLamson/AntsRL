@@ -32,20 +32,21 @@ visualize_every = 10      # Save every X episodes for visualisation
 training = True
 only_visualize = False
 # use_model = None
-use_model = "13_4_19_collect_agent_memory.h5"
+use_model = "14_4_15_collect_agent_memory.h5"
 save_file_name = "collect_agent.arl"
 
-episodes = 50
-steps = 1000
+episodes = 30
+steps = 2000
 
 min_epsilon = 0.1
-max_epsilon = 1
+max_epsilon = 0.5
 # -------------------------------------------
 
 # Key: step of episode      Value: list of reward factors
 reward_sequence = {
     # 0: [1, 0, 0, 0],
-    0: [1, 10, 50, 100],
+    # 0: [1, 2, 3, 5],
+    0: [2, 1, 2, 5],
     # 500: [0, 0, 100]
 }
 
@@ -53,7 +54,7 @@ reward_sequence = {
 def main():
     states = []
 
-    n_ants = 20
+    n_ants = 50
 
     # Setting up environment
     generator = EnvironmentGenerator(w=200,
@@ -62,8 +63,10 @@ def main():
                                      n_pheromones=2,
                                      n_rocks=0,
                                      food_generator=AvoidingCirclesGenerator(15, 5, 10, 100, 100, 20),
-                                     walls_generator=PerlinGenerator(scale=22.0, density=0.2), # 0.06
+                                     # food_generator=CirclesGenerator(15, 5, 10),
+                                     walls_generator=PerlinGenerator(scale=22.0, density=0.06), # 0.06
                                      max_steps=steps,
+                                     # seed=420)
                                      seed=None)
 
     # Setting up RL Rewards
@@ -86,6 +89,7 @@ def main():
     # Setting up RL Agent
     agent = CollectAgentMemory(rewards=rewards,
                                epsilon=1,
+                               learning_rate=1e-5,
                                rotations=3,
                                pheromones=3)
 
