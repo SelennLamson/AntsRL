@@ -20,21 +20,21 @@ aggregate_stats_every = 5
 save_model = False
 visualize_every = 10      # Save every X episodes for visualisation
 training = False
-use_model = None
+# use_model = None
 only_visualize = False
 use_model = "good_model.h5"
 save_file_name = "collect_agent.arl"
 
 
 episodes = 1
-steps = 3000
+steps = 200
 min_epsilon = 0.1
 max_epsilon = 1
 # -------------------------------------------
 
 def main():
     states = []
-    n_ants = 50
+    n_ants = 100
 
     # Setting up RL Reward
     # reward = ExplorationReward()
@@ -67,10 +67,10 @@ def main():
                                          n_ants=n_ants,
                                          n_pheromones=2,
                                          n_rocks=0,
-                                         food_generator=CirclesGenerator(10, 5, 10),
-                                         walls_generator=PerlinGenerator(scale=22.0, density=0.06),
+                                         food_generator=CirclesGenerator(20, 5, 10),
+                                         walls_generator=PerlinGenerator(scale=22.0, density=0.1),
                                          max_steps=steps,
-                                         seed=420)
+                                         seed=181654)
 
         env = generator.generate(api)
         print('\n--- Episode {}/{} --- {}'.format(episode + 1, episodes, "VISUALIZED" if visualize_episode else ""))
@@ -151,5 +151,5 @@ if __name__ == '__main__':
     if not only_visualize:
         main()
     visualiser = Visualizer()
-    visualiser.big_dim = 700
+    visualiser.big_dim = 900
     visualiser.visualize(save_file_name)
