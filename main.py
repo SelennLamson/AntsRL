@@ -9,6 +9,7 @@ from environment.RL_api import RLApi
 from generator.environment_generator import EnvironmentGenerator
 from generator.map_generators import *
 from environment.rewards.reward_custom import *
+from utils import plot_training
 
 from agents.random_agent import RandomAgent
 from agents.collect_agent_rework import CollectAgentRework
@@ -19,14 +20,14 @@ from agents.collect_agent_memory import CollectAgentMemory
 aggregate_stats_every = 5
 save_model = False
 visualize_every = 10      # Save every X episodes for visualisation
-training = False
-# use_model = None
+training = True
+use_model = None
 only_visualize = False
-use_model = "good_model.h5"
+#use_model = "19_4_12_collect_agent_memory.h5"
 save_file_name = "collect_agent.arl"
 
 
-episodes = 1
+episodes = 2
 steps = 200
 min_epsilon = 0.1
 max_epsilon = 1
@@ -34,11 +35,11 @@ max_epsilon = 1
 
 def main():
     states = []
-    n_ants = 100
+    n_ants = 20
 
     # Setting up RL Reward
-    # reward = ExplorationReward()
-    reward_funct = All_Rewards(fct_explore=1, fct_food=5, fct_anthill=100, fct_explore_holding=0, fct_headinganthill=1)
+    #reward_funct = ExplorationReward()
+    reward_funct = All_Rewards(fct_explore=1, fct_food=0, fct_anthill=0, fct_explore_holding=0, fct_headinganthill=0)
 
     # Setting up RL Api
     api = RLApi(reward=reward_funct,
@@ -58,6 +59,9 @@ def main():
     avg_loss = None
     avg_time = None
 
+    all_loss = []
+    all_reward = []
+
     print("Starting simulation...")
     for episode in range(episodes):
         visualize_episode = (episode + 1) % visualize_every == 0 or episode == 0 or not training
@@ -68,9 +72,9 @@ def main():
                                          n_pheromones=2,
                                          n_rocks=0,
                                          food_generator=CirclesGenerator(20, 5, 10),
-                                         walls_generator=PerlinGenerator(scale=22.0, density=0.1),
+                                         walls_generator=PerlinGenerator(scale=22.0, density=0.12),
                                          max_steps=steps,
-                                         seed=181654)
+                                         seed=None)
 
         env = generator.generate(api)
         print('\n--- Episode {}/{} --- {}'.format(episode + 1, episodes, "VISUALIZED" if visualize_episode else ""))
@@ -96,7 +100,7 @@ def main():
             # Update replay memory with new action and states
             agent.update_replay_memory(obs, agent_state, action, reward, new_state, new_agent_state, done)
             # Train the neural network
-            if training and s > 2000:
+            if training:
                 loss = agent.train(done, s)
                 if avg_loss is None:
                     avg_loss = loss
@@ -141,12 +145,21 @@ def main():
             del previous_states
             states = []
         gc.collect()
-        agent.epsilon = max(min_epsilon,  min(max_epsilon, 1.0 - math.log10((episode+1)/10)))
+        agent.epsilon = max(min_epsilon,  min(max_epsilon, 1.0 - math.log10((episode+1)/2)))
         print('\n Epsilon : ', agent.epsilon)
+        all_loss.append(avg_loss)
+        all_reward.append(mean_reward)
+
     if save_model and training:
         date = datetime.datetime.now()
         model_name = str(date.day) + '_' + str(date.month) + '_' + str(date.hour) + '_' + agent.name + '.h5'
         agent.save_model(model_name)
+        
+    plot_training(all_reward, all_loss)
+
+
+
+
 if __name__ == '__main__':
     if not only_visualize:
         main()
