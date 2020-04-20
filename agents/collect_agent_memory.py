@@ -35,22 +35,23 @@ class CollectModelMemory(nn.Module):
 
         self.mem_size = mem_size
 
-        self.layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 64)
-        self.layer2 = nn.Linear(64, 128)
-        self.layer3 = nn.Linear(128, 32)
-        self.layer4 = nn.Linear(32, self.input_size + self.agent_input_size + self.mem_size)
+        power = 5
+        self.layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 2**(2 + power))
+        self.layer2 = nn.Linear(2**(2 + power), 2**(3 + power))
+        self.layer3 = nn.Linear(2**(3 + power), 2**(1 + power))
+        self.layer4 = nn.Linear(2**(1 + power), self.input_size + self.agent_input_size + self.mem_size)
 
-        self.rotation_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 64)
-        self.rotation_layer2 = nn.Linear(64, 128)
-        self.rotation_layer3 = nn.Linear(128, rotations)
+        self.rotation_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 2**(2 + power))
+        self.rotation_layer2 = nn.Linear(2**(2 + power), 2**(3 + power))
+        self.rotation_layer3 = nn.Linear(2**(3 + power), rotations)
 
-        self.pheromone_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 32)
-        self.pheromone_layer2 = nn.Linear(32, pheromones)
+        self.pheromone_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 2**(1 + power))
+        self.pheromone_layer2 = nn.Linear(2**(1 + power), pheromones)
 
-        self.memory_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 64)
-        self.memory_layer2 = nn.Linear(64, 64)
-        self.memory_layer3 = nn.Linear(64, self.mem_size)
-        self.forget_layer = nn.Linear(64, self.mem_size)
+        self.memory_layer1 = nn.Linear(self.input_size + self.agent_input_size + self.mem_size, 2**(2 + power))
+        self.memory_layer2 = nn.Linear(2**(2 + power), 2**(2 + power))
+        self.memory_layer3 = nn.Linear(2**(2 + power), self.mem_size)
+        self.forget_layer = nn.Linear(2**(2 + power), self.mem_size)
 
     def forward(self, state, agent_state):
         old_memory = agent_state[:, self.agent_input_size:]
@@ -100,7 +101,7 @@ class CollectAgentMemory(Agent):
         self.target_update_counter = 0
         self.state = None
 
-        self.mem_size = 10
+        self.mem_size = 20
         self.agent_and_mem_space = None
         self.previous_memory = None
 

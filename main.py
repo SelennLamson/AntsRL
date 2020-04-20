@@ -18,34 +18,34 @@ from agents.collect_agent_memory import CollectAgentMemory
 #               Main parameters
 # -------------------------------------------
 aggregate_stats_every = 5
-save_model = False
-visualize_every = 10      # Save every X episodes for visualisation
+save_model = True
+visualize_every = 20      # Save every X episodes for visualisation
 training = True
-use_model = None
+# use_model = None
 only_visualize = False
-#use_model = "19_4_12_collect_agent_memory.h5"
+use_model = "20_4_13_collect_agent_memory.h5"
 save_file_name = "collect_agent.arl"
 
 
-episodes = 2
-steps = 200
-min_epsilon = 0.1
+episodes = 100
+steps = 2000
+min_epsilon = 0.01
 max_epsilon = 1
 # -------------------------------------------
 
 def main():
     states = []
-    n_ants = 20
+    n_ants = 50
 
     # Setting up RL Reward
     #reward_funct = ExplorationReward()
-    reward_funct = All_Rewards(fct_explore=1, fct_food=0, fct_anthill=0, fct_explore_holding=0, fct_headinganthill=0)
+    reward_funct = All_Rewards(fct_explore=1, fct_food=2, fct_anthill=10, fct_explore_holding=1, fct_headinganthill=3)
 
     # Setting up RL Api
     api = RLApi(reward=reward_funct,
                 reward_threshold=1,
                 max_speed=1,
-                max_rot_speed=45,
+                max_rot_speed=40 / 180 * np.pi,
                 carry_speed_reduction=0.05,
                 backward_speed_reduction=0.5)
     api.save_perceptive_field = True
@@ -72,7 +72,7 @@ def main():
                                          n_pheromones=2,
                                          n_rocks=0,
                                          food_generator=CirclesGenerator(20, 5, 10),
-                                         walls_generator=PerlinGenerator(scale=22.0, density=0.12),
+                                         walls_generator=PerlinGenerator(scale=22.0, density=0.3),
                                          max_steps=steps,
                                          seed=None)
 
@@ -87,6 +87,7 @@ def main():
 
         obs, agent_state, state = api.observation()
         episode_reward = np.zeros(n_ants)
+        mean_reward = 0
 
         for s in range(steps):
             now = time.time()
