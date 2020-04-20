@@ -42,9 +42,9 @@ class Pheromone (EnvObject):
             self.phero = np.minimum(self.phero, self.max_val)
 
     def update(self):
-        for obj in self.environment.objects:
-            if isinstance(obj, Anthill):
-                self.phero *= (1 - obj.area)
+        # for obj in self.environment.objects:
+        #     if isinstance(obj, Anthill):
+        #         self.phero *= (1 - obj.area)
 
         self.phero = convolve2d(self.phero, DIFFUSE_FILTER, 'same', 'fill', 0)
         self.phero[self.phero < 0.01] = 0

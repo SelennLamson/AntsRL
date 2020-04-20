@@ -33,6 +33,16 @@ class ReplayMemory(Dataset):
         self.new_agent_states.requires_grad = False
         self.dones.requires_grad = False
 
+        # Passing everything to cuda:
+        if torch.cuda.is_available():
+            self.states = self.states.cuda()
+            self.agent_states = self.agent_states.cuda()
+            self.actions = self.actions.cuda()
+            self.rewards = self.rewards.cuda()
+            self.new_states = self.new_states.cuda()
+            self.new_agent_states = self.new_agent_states.cuda()
+            self.dones = self.dones.cuda()
+
         # Current writing head in memory
         self.head = 0
 

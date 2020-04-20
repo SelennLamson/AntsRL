@@ -14,7 +14,7 @@ class AnthillHeadingReward(Reward):
         self.ants = None
 
     def compute_distance(self, x, y):
-        return ((x - self.anthill_x)**2 + (y - self.anthill_y)**2)**0.5 - (self.anthill_r + 3)
+        return ((x - self.anthill_x)**2 + (y - self.anthill_y)**2)**0.5 - (self.anthill_r - 3)
 
     def setup(self, ants: Ants):
         super(AnthillHeadingReward, self).setup(ants)
@@ -33,3 +33,4 @@ class AnthillHeadingReward(Reward):
         new_dist = self.compute_distance(self.ants.x, self.ants.y)
         self.rewards = (self.previous_dist > new_dist) * (self.ants.holding > 0) * (new_dist > 0) * 1.0 - (new_dist < 0) * 1.0
         self.previous_dist = np.minimum(new_dist, self.previous_dist) + (self.ants.holding == 0) * 10000
+

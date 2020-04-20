@@ -20,7 +20,7 @@ class Agent(ABC):
 		:param trained_model: an optional file name of a model to load
 		"""
 		self.observation_space = (rl_api.perception_coords.shape[0], rl_api.perception_coords.shape[1], len(rl_api.perceived_objects))
-		self.agent_space = [2]
+		self.agent_space = [3]
 		self.action_space = [2]
 		self.n_ants = rl_api.ants.n_ants
 

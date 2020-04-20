@@ -44,6 +44,27 @@ class CirclesGenerator:
                         gen[x, y] = True
         return gen
 
+class OneCircleGenerator:
+    def __init__(self, opt_x, opt_y, min_radius, max_radius):
+        self.opt_x = opt_x
+        self.opt_y = opt_y
+        self.min_radius = min_radius
+        self.max_radius = max_radius
+
+    def generate(self, w, h):
+        gen = np.zeros((w, h), dtype=bool)
+
+        radius = int(random.random() * (self.max_radius - self.min_radius) + self.min_radius)
+        xc = int(random.random() * (w - 2 * radius) + radius) if self.opt_x is None else self.opt_x
+        yc = int(random.random() * (h - 2 * radius) + radius) if self.opt_y is None else self.opt_y
+
+        for x in range(xc - radius, xc + radius + 1):
+            for y in range(yc - radius, yc + radius + 1):
+                dist = ((xc - x) ** 2 + (yc - y) ** 2) ** 0.5
+                if dist <= radius:
+                    gen[x, y] = True
+        return gen
+
 class AvoidingCirclesGenerator:
     def __init__(self, n_circles, min_radius, max_radius, x_avoid, y_avoid, avoid_radius):
         self.n_circles = n_circles

@@ -6,12 +6,13 @@ from .pheromone import Pheromone
 from .food import Food
 
 class AntsVisualization(EnvObject):
-    def __init__(self, env, ants_xyt, mandibles, holding, reward_state):
+    def __init__(self, env, ants_xyt, mandibles, holding, reward_state, seed):
         super().__init__(env)
         self.ants = ants_xyt.copy()
         self.mandibles = mandibles.copy()
         self.holding = holding.copy()
         self.reward_state = reward_state.copy()
+        # self.seed = seed.copy()
 
 
 class Ants (EnvObject):
@@ -41,7 +42,7 @@ class Ants (EnvObject):
         self.seed = np.random.random(n_ants)
 
     def visualize_copy(self, newenv):
-        return AntsVisualization(newenv, self.ants, self.mandibles, self.holding, self.reward_state)
+        return AntsVisualization(newenv, self.ants, self.mandibles, self.holding, self.reward_state, self.seed)
 
     @property
     def x(self):

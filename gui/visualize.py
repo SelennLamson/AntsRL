@@ -18,6 +18,11 @@ PERCEPTIVE_FIELD_COLOR = (255, 255, 0)
 ANTHILL_COLOR = (0, 0, 255, 128)
 ANTS_SIZE = (24, 24) # Original image size: (32, 32)
 
+ANT_COLORS = [np.array([128, 128, 0, 255]),
+              np.array([0, 128, 0, 255]),
+              np.array([0, 0, 128, 255]),
+              np.array([0, 0, 255, 255])]
+
 
 
 def mix_alpha(rgb1, alpha1, rgb2, alpha2):
@@ -198,6 +203,10 @@ class Visualizer:
                         img = self.ant.copy()
                         color = pygame.Surface((100, 100))
                         color.fill((REWARD_ANTS_COLOR * obj.reward_state[i] / 255).astype(np.uint8))
+                        # color.fill(ANT_COLORS[int(obj.seed[i] * 4)].astype(np.uint8))
+
+
+
                         img.blit(color, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 
                         if obj.holding[i] > 0:

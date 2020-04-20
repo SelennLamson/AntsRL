@@ -60,7 +60,7 @@ class EnvironmentGenerator:
         anthill = Anthill(env,
                           int(random.random() * self.w * 0.5 + self.w * 0.25),
                           int(random.random() * self.h * 0.5 + self.h * 0.25),
-                          int(random.random() * min(self.w, self.h) * 0.02 + min(self.w, self.h) * 0.05))
+                          int(random.random() * min(self.w, self.h) * 0.05 + min(self.w, self.h) * 0.05))
         # anthill = Anthill(env, 100, 100, 20)
         perceived_objects.append(anthill)
 
